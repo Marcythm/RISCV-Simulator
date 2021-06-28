@@ -6,12 +6,14 @@
 #include "Utility.hpp"
 
 struct Instruction {
-    u32 pc;
     u32 encoding;
+    u32 pc;
 
-    Instruction(const u32 encoding_): pc(0), encoding(encoding_) {}
+    Instruction(const u32 encoding_, const u32 pc_):
+        encoding(encoding_), pc(pc_) {}
 
-    static auto Decode(const u32 encoding) -> std::unique_ptr<Instruction>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<Instruction>;
 
     virtual auto Execute() -> void {}
     virtual auto MemAccess() -> void {}
@@ -28,20 +30,23 @@ struct InstFormatR: Instruction {
 	static constexpr u32 funct7 = funct7_;
 
     u8 rs1, rs2, rd;
-    InstFormatR(const u32 encoding, const u32 reg[32]): Instruction(encoding),
+    InstFormatR(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         rd(getbits<11, 7>(encoding)) {}
 
-    static auto Decode(const u32 encoding, const u32 reg[32]) -> std::unique_ptr<InstFormatR>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatR>;
 };
 
-#define BEG_INST_R(mnemonic)                                        \
-    struct mnemonic: InstFormatR<EncodingTable::mnemonic::opcode,   \
-                                 EncodingTable::mnemonic::funct3,   \
-                                 EncodingTable::mnemonic::funct7> { \
-        mnemonic(const u32 encoding, const u32 reg[32]): InstFormatR(encoding, reg) {}
-#define END_INST_R(mnemonic)                                        \
+#define BEG_INST_R(mnemonic)                                            \
+    struct mnemonic: InstFormatR<EncodingTable::mnemonic::opcode,       \
+                                 EncodingTable::mnemonic::funct3,       \
+                                 EncodingTable::mnemonic::funct7> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatR(encoding, pc, reg) {}
+#define END_INST_R(mnemonic)                                            \
     };
 
 
@@ -50,22 +55,25 @@ struct InstFormatI: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rd; u16 imm;
-    InstFormatI(const u32 encoding, const u32 reg[32]): Instruction(encoding),
+    u8 rs1, rd; u16 imm; // imm length: 12
+    InstFormatI(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 20>(encoding)) {
         rs1 = reg[rs1];
     }
 
-    static auto Decode(const u32 encoding, const u32 reg[32]) -> std::unique_ptr<InstFormatI>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatI>;
 };
 
-#define BEG_INST_I(mnemonic)                                        \
-    struct mnemonic: InstFormatI<EncodingTable::mnemonic::opcode,   \
-                                 EncodingTable::mnemonic::funct3> { \
-        mnemonic(const u32 encoding, const u32 reg[32]): InstFormatI(encoding, reg) {}
-#define END_INST_I(mnemonic)                                        \
+#define BEG_INST_I(mnemonic)                                            \
+    struct mnemonic: InstFormatI<EncodingTable::mnemonic::opcode,       \
+                                 EncodingTable::mnemonic::funct3> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatI(encoding, pc, reg) {}
+#define END_INST_I(mnemonic)                                            \
     };
 
 
@@ -74,8 +82,9 @@ struct InstFormatS: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rs2; u16 imm;
-    InstFormatS(const u32 encoding, const u32 reg[32]): Instruction(encoding),
+    u8 rs1, rs2; u16 imm; // imm length: 12
+    InstFormatS(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         imm((getbits<31, 25>(encoding) << 5)
@@ -84,14 +93,16 @@ struct InstFormatS: Instruction {
         rs2 = reg[rs2];
     }
 
-    static auto Decode(const u32 encoding, const u32 reg[32]) -> std::unique_ptr<InstFormatS>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatS>;
 };
 
-#define BEG_INST_S(mnemonic)                                        \
-    struct mnemonic: InstFormatS<EncodingTable::mnemonic::opcode,   \
-                                 EncodingTable::mnemonic::funct3> { \
-        mnemonic(const u32 encoding, const u32 reg[32]): InstFormatS(encoding, reg) {}
-#define END_INST_S(mnemonic)                                        \
+#define BEG_INST_S(mnemonic)                                            \
+    struct mnemonic: InstFormatS<EncodingTable::mnemonic::opcode,       \
+                                 EncodingTable::mnemonic::funct3> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatS(encoding, pc, reg) {}
+#define END_INST_S(mnemonic)                                            \
     };
 
 
@@ -100,8 +111,9 @@ struct InstFormatB: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rs2; u16 imm;
-    InstFormatB(const u32 encoding, const u32 reg[32]): Instruction(encoding),
+    u8 rs1, rs2; u16 imm; // imm length: 13
+    InstFormatB(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         imm((getbits<31>(encoding) << 12)
@@ -113,14 +125,16 @@ struct InstFormatB: Instruction {
         rs2 = reg[rs2];
     }
 
-    static auto Decode(const u32 encoding, const u32 reg[32]) -> std::unique_ptr<InstFormatB>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatB>;
 };
 
-#define BEG_INST_B(mnemonic)                                        \
-    struct mnemonic: InstFormatB<EncodingTable::mnemonic::opcode,   \
-                                 EncodingTable::mnemonic::funct3> { \
-        mnemonic(const u32 encoding, const u32 reg[32]): InstFormatB(encoding, reg) {}
-#define END_INST_B(mnemonic)                                        \
+#define BEG_INST_B(mnemonic)                                            \
+    struct mnemonic: InstFormatB<EncodingTable::mnemonic::opcode,       \
+                                 EncodingTable::mnemonic::funct3> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatB(encoding, pc, reg) {}
+#define END_INST_B(mnemonic)                                            \
     };
 
 
@@ -128,18 +142,21 @@ template <u32 opcode_>
 struct InstFormatU: Instruction {
 	static constexpr u32 opcode = opcode_;
 
-    u8 rd; u32 imm;
-    InstFormatU(const u32 encoding, const u32 reg[32]): Instruction(encoding),
+    u8 rd; u32 imm; // imm length: 20
+    InstFormatU(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 12>(encoding) << 12) {}
 
-    static auto Decode(const u32 encoding, const u32 reg[32]) -> std::unique_ptr<InstFormatU>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatU>;
 };
 
-#define BEG_INST_U(mnemonic)                                        \
-    struct mnemonic: InstFormatU<EncodingTable::mnemonic::opcode> { \
-        mnemonic(const u32 encoding, const u32 reg[32]): InstFormatU(encoding, reg) {}
-#define END_INST_U(mnemonic)                                        \
+#define BEG_INST_U(mnemonic)                                            \
+    struct mnemonic: InstFormatU<EncodingTable::mnemonic::opcode> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatU(encoding, pc, reg) {}
+#define END_INST_U(mnemonic)                                            \
     };
 
 
@@ -147,8 +164,9 @@ template <u32 opcode_>
 struct InstFormatJ: Instruction {
 	static constexpr u32 opcode = opcode_;
 
-    u8 rd; u32 imm;
-    InstFormatJ(const u32 encoding): Instruction(encoding),
+    u8 rd; u32 imm; // imm length: 20
+    InstFormatJ(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
         imm((getbits<31>(encoding) << 20)
           + (getbits<19, 12>(encoding) << 12)
@@ -156,13 +174,15 @@ struct InstFormatJ: Instruction {
           + (getbits<30, 21>(encoding) << 1)
         ) {}
 
-    static auto Decode(const u32 encoding) -> std::unique_ptr<InstFormatJ>;
+    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+        -> std::unique_ptr<InstFormatJ>;
 };
 
-#define BEG_INST_J(mnemonic)                                        \
-    struct mnemonic: InstFormatJ<EncodingTable::mnemonic::opcode> { \
-        mnemonic(const u32 encoding): InstFormatJ(encoding) {}
-#define END_INST_J(mnemonic)                                        \
+#define BEG_INST_J(mnemonic)                                            \
+    struct mnemonic: InstFormatJ<EncodingTable::mnemonic::opcode> {     \
+        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
+            InstFormatJ(encoding, pc, reg) {}
+#define END_INST_J(mnemonic)                                            \
     };
 
 
