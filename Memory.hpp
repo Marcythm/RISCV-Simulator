@@ -8,13 +8,16 @@ struct Memory {
 
     Memory(std::istream &input): mem{0} {
         std::string buf;
-        u8 *pos = mem;
+        u8 *pos = mem; u32 value;
         while (std::getline(input, buf)) {
             if (buf[0] == '@') {
                 pos = mem + std::stoi(buf.substr(1), nullptr, 16);
             } else {
                 const char *cstr = buf.c_str();
-                while (std::sscanf(cstr, "%X", pos++) != EOF) cstr += 3;
+                while (std::sscanf(cstr, "%X", &value) != EOF) {
+                    *pos++ = static_cast<u8>(value);
+                    cstr += 3;
+                }
             }
         }
     }
