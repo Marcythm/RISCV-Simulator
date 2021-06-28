@@ -9,8 +9,8 @@ struct Instruction {
     u32 encoding;
     u32 pc;
 
-    Instruction(const u32 encoding_, const u32 pc_):
-        encoding(encoding_), pc(pc_) {}
+    Instruction(const u32 encoding, const u32 pc):
+        encoding(encoding), pc(pc) {}
 
     static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
         -> std::unique_ptr<Instruction>;
@@ -29,7 +29,8 @@ struct InstFormatR: Instruction {
 	static constexpr u32 funct3 = funct3_;
 	static constexpr u32 funct7 = funct7_;
 
-    u8 rs1, rs2, rd;
+    u32 rs1, rs2, rd;
+    u32 result;
     InstFormatR(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -55,7 +56,8 @@ struct InstFormatI: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rd; u16 imm; // imm length: 12
+    u32 rs1, rd, imm; // imm length: 12
+    u32 result;
     InstFormatI(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -82,7 +84,8 @@ struct InstFormatS: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rs2; u16 imm; // imm length: 12
+    u32 rs1, rs2, imm; // imm length: 12
+    u32 result;
     InstFormatS(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -111,7 +114,8 @@ struct InstFormatB: Instruction {
 	static constexpr u32 opcode = opcode_;
 	static constexpr u32 funct3 = funct3_;
 
-    u8 rs1, rs2; u16 imm; // imm length: 13
+    u32 rs1, rs2, imm; // imm length: 13
+    bool result;
     InstFormatB(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -142,7 +146,8 @@ template <u32 opcode_>
 struct InstFormatU: Instruction {
 	static constexpr u32 opcode = opcode_;
 
-    u8 rd; u32 imm; // imm length: 20
+    u32 rd, imm; // imm length: 20
+    u32 result;
     InstFormatU(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
@@ -164,7 +169,8 @@ template <u32 opcode_>
 struct InstFormatJ: Instruction {
 	static constexpr u32 opcode = opcode_;
 
-    u8 rd; u32 imm; // imm length: 20
+    u32 rd, imm; // imm length: 20
+    u32 result;
     InstFormatJ(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
@@ -185,6 +191,180 @@ struct InstFormatJ: Instruction {
 #define END_INST_J(mnemonic)                                            \
     };
 
+
+/* ---------- Instructions ---------- */
+
+// 2.4 Integer Computational Instructions
+
+// 2.4.1 Integer Register-Immediate Instructions
+
+BEG_INST_I(ADDI)
+    auto Execute() -> void { result = cast<i32>(rs1) + cast<i32>(SignedExt32<12>(imm)); }
+END_INST_I(ADDI)
+
+BEG_INST_I(SLTI)
+    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(SignedExt32<12>(imm))) ? 1 : 0; }
+END_INST_I(SLTI)
+
+BEG_INST_I(SLTIU)
+    auto Execute() -> void { result = (rs1 < SignedExt32<12>(imm)) ? 1 : 0; }
+END_INST_I(SLTIU)
+
+BEG_INST_I(ANDI)
+    auto Execute() -> void { result = rs1 & SignedExt32<12>(imm); }
+END_INST_I(ANDI)
+
+BEG_INST_I(ORI)
+    auto Execute() -> void { result = rs1 | SignedExt32<12>(imm); }
+END_INST_I(ORI)
+
+BEG_INST_I(XORI)
+    auto Execute() -> void { result = rs1 ^ SignedExt32<12>(imm); }
+END_INST_I(XORI)
+
+BEG_INST_I(SLLI)
+    auto Execute() -> void { result = rs1 << imm; }
+END_INST_I(SLLI)
+
+BEG_INST_I(SRLI)
+    auto Execute() -> void { result = rs1 >> imm; }
+END_INST_I(SRLI)
+
+BEG_INST_I(SRAI)
+    auto Execute() -> void { result = SignedExt32(rs1 >> imm, 32 - imm); }
+END_INST_I(SRAI)
+
+BEG_INST_U(LUI)
+    auto Execute() -> void { result = imm; }
+END_INST_U(LUI)
+
+BEG_INST_U(AUIPC)
+    auto Execute() -> void { result = pc + imm; }
+END_INST_U(AUIPC)
+
+// 2.4.2 Integer Register-Register Operations
+
+BEG_INST_R(ADD)
+    auto Execute() -> void { result = rs1 + rs2; }
+END_INST_R(ADD)
+
+BEG_INST_R(SLT)
+    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
+END_INST_R(SLT)
+
+BEG_INST_R(SLTU)
+    auto Execute() -> void { result = (rs1 < rs2) ? 1 : 0; }
+END_INST_R(SLTU)
+
+BEG_INST_R(AND)
+    auto Execute() -> void { result = rs1 & rs2; }
+END_INST_R(AND)
+
+BEG_INST_R(OR)
+    auto Execute() -> void { result = rs1 | rs2; }
+END_INST_R(OR)
+
+BEG_INST_R(XOR)
+    auto Execute() -> void { result = rs1 ^ rs2; }
+END_INST_R(XOR)
+
+BEG_INST_R(SLL)
+    auto Execute() -> void { result = rs1 << (rs2 & 31); }
+END_INST_R(SLL)
+
+BEG_INST_R(SRL)
+    auto Execute() -> void { result = rs1 >> (rs2 & 31); }
+END_INST_R(SRL)
+
+BEG_INST_R(SUB)
+    auto Execute() -> void { result = rs1 - rs2; }
+END_INST_R(SUB)
+
+BEG_INST_R(SRA)
+    auto Execute() -> void { result = SignedExt32(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
+END_INST_R(SRA)
+
+// 2.5 Control Transfer Instructions
+
+// 2.5.1 Unconditional Jumps
+
+BEG_INST_J(JAL)
+    auto Execute() -> void { result = pc + 4; }
+    // auto WriteBack() -> void { pc = ; }
+END_INST_J(JAL)
+
+BEG_INST_I(JALR)
+    auto Execute() -> void { result = pc + 4; }
+END_INST_I(JALR)
+
+
+// 2.5.2 Conditional Branches
+
+BEG_INST_B(BEQ)
+    auto Execute() -> void { result = (rs1 == rs2); }
+END_INST_B(BEQ)
+
+BEG_INST_B(BNE)
+    auto Execute() -> void { result = (rs1 != rs2); }
+END_INST_B(BNE)
+
+BEG_INST_B(BLT)
+    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(rs2)); }
+END_INST_B(BLT)
+
+BEG_INST_B(BLTU)
+    auto Execute() -> void { result = (rs1 < rs2); }
+END_INST_B(BLTU)
+
+BEG_INST_B(BGE)
+    auto Execute() -> void { result = (cast<i32>(rs1) > cast<i32>(rs2)); }
+END_INST_B(BGE)
+
+BEG_INST_B(BGEU)
+    auto Execute() -> void { result = (rs1 > rs2); }
+END_INST_B(BGEU)
+
+// 2.6 Load and Store Instructions
+
+BEG_INST_I(LB)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_I(LB)
+
+BEG_INST_I(LH)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_I(LH)
+
+BEG_INST_I(LW)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_I(LW)
+
+BEG_INST_I(LBU)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_I(LBU)
+
+BEG_INST_I(LHU)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_I(LHU)
+
+BEG_INST_S(SB)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_S(SB)
+
+BEG_INST_S(SH)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_S(SH)
+
+BEG_INST_S(SW)
+    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
+    // auto MemAccess() -> void { result = result; }
+END_INST_S(SW)
 
 /* --------- undef --------- */
 
