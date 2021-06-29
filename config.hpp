@@ -6,6 +6,7 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 
 #include <memory>
@@ -38,6 +39,17 @@ constexpr char const * regname_[2][32] = {
     }
 };
 
-constexpr bool useABIname = true;
+namespace DumpOptions {
+    constexpr bool enabled          = true;     // dump mode enabled
+    constexpr bool MemoryOp         = false;    // dump memory operations
+    constexpr bool Inst             = true;     // dump instructions
+    constexpr bool Reg              = true;    // dump instructions
+    constexpr bool useABIname       = true;     // dump registers with their ABI name
 
-constexpr const char *const * regname = regname_[useABIname];
+    constexpr i32 OpcodestrAlign    = 8;        // dump opcodestr with this align
+    constexpr i32 ArgstrAlign       = 24;       // dump argstr with this align
+}
+
+constexpr const char *const * regname = regname_[DumpOptions::useABIname];
+
+#define MemoryDump

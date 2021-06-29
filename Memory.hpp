@@ -2,6 +2,10 @@
 
 #include "config.hpp"
 
+struct Register {
+    u32 x[32];
+};
+
 struct Memory {
     static constexpr u32 MEMORY_SIZE = 0x20000;
     u8 mem[MEMORY_SIZE + 10];
@@ -10,6 +14,8 @@ struct Memory {
     Memory(std::istream &input) { readfrom(input); }
 
     auto readfrom(std::istream &input) -> void {
+        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+            puts("---------- loading memory ----------");
         std::memset(mem, 0, sizeof mem);
         std::string buf;
         u8 *pos = mem; u32 value;
@@ -17,22 +23,27 @@ struct Memory {
             if (buf[0] == '@') {
                 pos = mem + std::stoi(buf.substr(1), nullptr, 16);
             } else {
-                const char *cstr = buf.c_str();
-                while (std::sscanf(cstr, "%X", &value) != EOF) {
+                std::stringstream ss(buf); ss << std::hex;
+                while (ss >> value) {
                     *pos++ = static_cast<u8>(value);
-                    cstr += 3;
                 }
             }
         }
+        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+            puts("---------- memory loaded ----------");
     }
 
     template <typename T>
     auto load(const u32 address) const -> T {
+        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+            printf("load from memory: addr = %08x, value = %08x\n", address, *((T*)(mem + address)));
         return *((T*)(mem + address));
     }
 
     template <typename T>
     auto save(const u32 address, const T& value) -> void {
+        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+            printf("save to memory:   addr = %08x, value = %08x\n", address, value);
         *((T*)(mem + address)) = value;
     }
 };

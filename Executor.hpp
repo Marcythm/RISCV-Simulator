@@ -5,7 +5,7 @@
 #include "Instruction.hpp"
 
 struct Executor {
-    InstPtr IF, ID, EX, MEM, WB;
+    // InstPtr IF, ID, EX, MEM, WB;
     u32 pc, reg[32];
     Memory mem;
 
@@ -13,6 +13,8 @@ struct Executor {
     Executor(std::istream &input): pc(0), reg{0}, mem(input) {}
 
     auto initMem(std::istream &input) { mem.readfrom(input); }
+
+    auto dumpReg() -> void;
 
     auto InstFetch() -> InstPtr;
     auto InstDecode(InstPtr &) -> void;
