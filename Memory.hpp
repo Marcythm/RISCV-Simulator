@@ -14,7 +14,7 @@ struct Memory {
     Memory(std::istream &input) { readfrom(input); }
 
     auto readfrom(std::istream &input) -> void {
-        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+        if constexpr (DumpOptions::TrackMemOp)
             puts("---------- loading memory ----------");
         std::memset(mem, 0, sizeof mem);
         std::string buf;
@@ -29,21 +29,21 @@ struct Memory {
                 }
             }
         }
-        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+        if constexpr (DumpOptions::TrackMemOp)
             puts("---------- memory loaded ----------");
     }
 
     template <typename T>
     auto load(const u32 address) const -> T {
-        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
+        if constexpr (DumpOptions::TrackMemOp)
             printf("load from memory: addr = %08x, value = %08x\n", address, *((T*)(mem + address)));
         return *((T*)(mem + address));
     }
 
     template <typename T>
-    auto save(const u32 address, const T& value) -> void {
-        if constexpr (DumpOptions::enabled && DumpOptions::MemoryOp)
-            printf("save to memory:   addr = %08x, value = %08x\n", address, value);
+    auto store(const u32 address, const T& value) -> void {
+        if constexpr (DumpOptions::TrackMemOp)
+            printf("store to memory:   addr = %08x, value = %08x\n", address, value);
         *((T*)(mem + address)) = value;
     }
 };

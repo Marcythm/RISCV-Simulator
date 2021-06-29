@@ -14,7 +14,7 @@ struct Executor {
 
     auto initMem(std::istream &input) { mem.readfrom(input); }
 
-    auto dumpReg() -> void;
+    auto DumpRegState() -> void;
 
     auto InstFetch() -> InstPtr;
     auto InstDecode(InstPtr &) -> void;

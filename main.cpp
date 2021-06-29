@@ -3,7 +3,7 @@
 #include "Executor.hpp"
 
 auto main() -> i32 {
-    Executor exec;
-    exec.exec(std::cin);
+    Executor executor;
+    executor.exec(std::cin);
     return 0;
 }

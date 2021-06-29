@@ -22,10 +22,18 @@ auto Executor::InstWriteBack(const InstPtr &inst) -> void {
     inst->WriteBack(pc, reg);
 }
 
-auto Executor::dumpReg() -> void {
-    for (i32 i = 1; i < 32; ++i)
-        if (reg[i]) printf("%s: %08x | ", regname[i], reg[i]);
-    puts("\n");
+auto Executor::DumpRegState() -> void {
+    puts("dumping register states");
+    puts("=============================== start ===============================");
+    for (i32 i = 0; i < 32; i += 4) {
+        for (i32 j = i; j < i + 4; ++j) {
+            printf("| ");
+            AlignedPrintf<DumpOptions::RegNameAlign>("%s:", regname[j]);
+            printf("%08x ", reg[j]);
+        }
+        puts("|");
+    }
+    puts("================================ end ================================");
 }
 
 auto Executor::exec(std::istream &input) -> u32 {
@@ -33,14 +41,14 @@ auto Executor::exec(std::istream &input) -> u32 {
     while (true) {
         InstPtr inst = InstFetch();
         InstDecode(inst);
-        if constexpr (DumpOptions::enabled && DumpOptions::Inst)
+        if constexpr (DumpOptions::DumpInst)
             inst->dump();
         if (inst->encoding == 0x0ff00513) break;
         InstExecute(inst);
         InstMemAccess(inst);
         InstWriteBack(inst);
-        if constexpr (DumpOptions::enabled && DumpOptions::Reg)
-            dumpReg();
+        if constexpr (DumpOptions::DumpRegState)
+            DumpRegState();
     }
     printf("ret: %d\n", reg[10] & 255u);
     return reg[10] & 255u;

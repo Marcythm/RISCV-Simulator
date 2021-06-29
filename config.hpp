@@ -40,12 +40,12 @@ constexpr char const * regname_[2][32] = {
 };
 
 namespace DumpOptions {
-    constexpr bool enabled          = true;     // dump mode enabled
-    constexpr bool MemoryOp         = false;    // dump memory operations
-    constexpr bool Inst             = true;     // dump instructions
-    constexpr bool Reg              = true;    // dump instructions
+    constexpr bool TrackMemOp       = false;    // track memory operations
+    constexpr bool DumpInst         = false;     // dump instructions
+    constexpr bool DumpRegState     = false;     // dump register states **every instruction**
     constexpr bool useABIname       = true;     // dump registers with their ABI name
 
+    constexpr i32 RegNameAlign      = 6;        // dump Regname with this align
     constexpr i32 OpcodestrAlign    = 8;        // dump opcodestr with this align
     constexpr i32 ArgstrAlign       = 24;       // dump argstr with this align
 }
