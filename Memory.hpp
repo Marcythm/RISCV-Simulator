@@ -6,7 +6,11 @@ struct Memory {
     static constexpr u32 MEMORY_SIZE = 0x20000;
     u8 mem[MEMORY_SIZE + 10];
 
-    Memory(std::istream &input): mem{0} {
+    Memory(): mem{0} {}
+    Memory(std::istream &input) { readfrom(input); }
+
+    auto readfrom(std::istream &input) -> void {
+        std::memset(mem, 0, sizeof mem);
         std::string buf;
         u8 *pos = mem; u32 value;
         while (std::getline(input, buf)) {

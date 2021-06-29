@@ -1,10 +1,10 @@
 #include "Instruction.hpp"
 
-#define RET(mnemonic) return std::make_unique<mnemonic>(encoding, pc, reg)
+#define RET(mnemonic) return std::make_shared<mnemonic>(encoding, pc, reg)
 #define CASE(mnemonic, type) case mnemonic::type: RET(mnemonic)
 
 auto Instruction::Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-    -> std::unique_ptr<Instruction> {
+    -> InstPtr {
     switch (GetOpcode(encoding)) {
     case 0b0010011:
         switch (GetFunct3(encoding)) {

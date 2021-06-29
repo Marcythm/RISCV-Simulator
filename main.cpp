@@ -1,8 +1,9 @@
+#include "config.hpp"
 #include "Instruction.hpp"
+#include "Executor.hpp"
 
 auto main() -> i32 {
-    u32 a, reg[32];
-    ADDI inst(1, a, reg);
-    inst.EX();
+    Executor exec;
+    exec.exec(std::cin);
     return 0;
 }
