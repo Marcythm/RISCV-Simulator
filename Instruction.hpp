@@ -115,143 +115,97 @@ struct InstructionImpl: Tag, Fmt {
     auto WB(u32 &pc, u32 reg[32]) -> void { Fmt::WB(pc, reg); }
 };
 
-// 2.4 Integer Computational Instructions
-
-// 2.4.1 Integer Register-Immediate Instructions
-
-using ADDI = InstructionImpl<InstTag::ADDI, InstFormatI>;
-template <> auto ADDI::EX() -> void { res = cast<i32>(rs1) + cast<i32>(SExt32<12>(imm)); }
-
-using SLTI = InstructionImpl<InstTag::SLTI, InstFormatI>;
-template <> auto SLTI::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(SExt32<12>(imm))) ? 1 : 0; }
-
+using ADDI  = InstructionImpl<InstTag::ADDI,  InstFormatI>;
+using SLTI  = InstructionImpl<InstTag::SLTI,  InstFormatI>;
 using SLTIU = InstructionImpl<InstTag::SLTIU, InstFormatI>;
-template <> auto SLTIU::EX() -> void { res = (rs1 < SExt32<12>(imm)) ? 1 : 0; }
+using ANDI  = InstructionImpl<InstTag::ANDI,  InstFormatI>;
+using ORI   = InstructionImpl<InstTag::ORI,   InstFormatI>;
+using XORI  = InstructionImpl<InstTag::XORI,  InstFormatI>;
+using SLLI  = InstructionImpl<InstTag::SLLI,  InstFormatI>;
+using SRLI  = InstructionImpl<InstTag::SRLI,  InstFormatI>;
+using SRAI  = InstructionImpl<InstTag::SRAI,  InstFormatI>;
+using LUI   = InstructionImpl<InstTag::LUI,   InstFormatU>;
+using AUIPC = InstructionImpl<InstTag::AUIPC, InstFormatU>;
+using ADD   = InstructionImpl<InstTag::ADD,   InstFormatR>;
+using SLT   = InstructionImpl<InstTag::SLT,   InstFormatR>;
+using SLTU  = InstructionImpl<InstTag::SLTU,  InstFormatR>;
+using AND   = InstructionImpl<InstTag::AND,   InstFormatR>;
+using OR    = InstructionImpl<InstTag::OR,    InstFormatR>;
+using XOR   = InstructionImpl<InstTag::XOR,   InstFormatR>;
+using SLL   = InstructionImpl<InstTag::SLL,   InstFormatR>;
+using SRL   = InstructionImpl<InstTag::SRL,   InstFormatR>;
+using SUB   = InstructionImpl<InstTag::SUB,   InstFormatR>;
+using SRA   = InstructionImpl<InstTag::SRA,   InstFormatR>;
+using JAL   = InstructionImpl<InstTag::JAL,   InstFormatJ>;
+using JALR  = InstructionImpl<InstTag::JALR,  InstFormatI>;
+using BEQ   = InstructionImpl<InstTag::BEQ,   InstFormatB>;
+using BNE   = InstructionImpl<InstTag::BNE,   InstFormatB>;
+using BLT   = InstructionImpl<InstTag::BLT,   InstFormatB>;
+using BLTU  = InstructionImpl<InstTag::BLTU,  InstFormatB>;
+using BGE   = InstructionImpl<InstTag::BGE,   InstFormatB>;
+using BGEU  = InstructionImpl<InstTag::BGEU,  InstFormatB>;
+using LB    = InstructionImpl<InstTag::LB,    InstFormatI>;
+using LH    = InstructionImpl<InstTag::LH,    InstFormatI>;
+using LW    = InstructionImpl<InstTag::LW,    InstFormatI>;
+using LBU   = InstructionImpl<InstTag::LBU,   InstFormatI>;
+using LHU   = InstructionImpl<InstTag::LHU,   InstFormatI>;
+using SB    = InstructionImpl<InstTag::SB,    InstFormatS>;
+using SH    = InstructionImpl<InstTag::SH,    InstFormatS>;
+using SW    = InstructionImpl<InstTag::SW,    InstFormatS>;
 
-using ANDI = InstructionImpl<InstTag::ANDI, InstFormatI>;
-template <> auto ANDI::EX() -> void { res = rs1 & SExt32<12>(imm); }
-
-using ORI = InstructionImpl<InstTag::ORI, InstFormatI>;
-template <> auto ORI::EX() -> void { res = rs1 | SExt32<12>(imm); }
-
-using XORI = InstructionImpl<InstTag::XORI, InstFormatI>;
-template <> auto XORI::EX() -> void { res = rs1 ^ SExt32<12>(imm); }
-
-using SLLI = InstructionImpl<InstTag::SLLI, InstFormatI>;
-template <> auto SLLI::EX() -> void { res = rs1 << imm; }
-
-using SRLI = InstructionImpl<InstTag::SRLI, InstFormatI>;
-template <> auto SRLI::EX() -> void { res = rs1 >> imm; }
-
-using SRAI = InstructionImpl<InstTag::SRAI, InstFormatI>;
 template <> SRAI::InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
     InstFormatI(encoding, pc, reg) { imm &= ~(1 << 10); }
-template <> auto SRAI::EX() -> void { res = SExt32(rs1 >> imm, 32 - imm); }
 
-using LUI = InstructionImpl<InstTag::LUI, InstFormatU>;
-template <> auto LUI::EX() -> void { res = imm; }
+template <> auto ADDI  ::EX() -> void { res = cast<i32>(rs1) + cast<i32>(SExt<12>(imm)); }
+template <> auto SLTI  ::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(SExt<12>(imm))) ? 1 : 0; }
+template <> auto SLTIU ::EX() -> void { res = (rs1 < SExt<12>(imm)) ? 1 : 0; }
+template <> auto ANDI  ::EX() -> void { res = rs1 & SExt<12>(imm); }
+template <> auto ORI   ::EX() -> void { res = rs1 | SExt<12>(imm); }
+template <> auto XORI  ::EX() -> void { res = rs1 ^ SExt<12>(imm); }
+template <> auto SLLI  ::EX() -> void { res = rs1 << imm; }
+template <> auto SRLI  ::EX() -> void { res = rs1 >> imm; }
+template <> auto SRAI  ::EX() -> void { res = SExt(rs1 >> imm, 32 - imm); }
+template <> auto LUI   ::EX() -> void { res = imm; }
+template <> auto AUIPC ::EX() -> void { res = pc + imm; }
+template <> auto ADD   ::EX() -> void { res = rs1 + rs2; }
+template <> auto SLT   ::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
+template <> auto SLTU  ::EX() -> void { res = (rs1 < rs2) ? 1 : 0; }
+template <> auto AND   ::EX() -> void { res = rs1 & rs2; }
+template <> auto OR    ::EX() -> void { res = rs1 | rs2; }
+template <> auto XOR   ::EX() -> void { res = rs1 ^ rs2; }
+template <> auto SLL   ::EX() -> void { res = rs1 << (rs2 & 31); }
+template <> auto SRL   ::EX() -> void { res = rs1 >> (rs2 & 31); }
+template <> auto SUB   ::EX() -> void { res = rs1 - rs2; }
+template <> auto SRA   ::EX() -> void { res = SExt(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
+template <> auto JAL   ::EX() -> void { res = pc + 4; }
+template <> auto JALR  ::EX() -> void { res = pc + 4; }
+template <> auto BEQ   ::EX() -> void { res = pc + (rs1 == rs2 ? SExt<13>(imm) : 0); }
+template <> auto BNE   ::EX() -> void { res = pc + (rs1 != rs2 ? SExt<13>(imm) : 0); }
+template <> auto BLT   ::EX() -> void { res = pc + ((cast<i32>(rs1) < cast<i32>(rs2)) ? SExt<13>(imm) : 0); }
+template <> auto BLTU  ::EX() -> void { res = pc + ((rs1 < rs2) ? SExt<13>(imm) : 0); }
+template <> auto BGE   ::EX() -> void { res = pc + ((cast<i32>(rs1) > cast<i32>(rs2)) ? SExt<13>(imm) : 0); }
+template <> auto BGEU  ::EX() -> void { res = pc + ((rs1 > rs2) ? SExt<13>(imm) : 0); }
+template <> auto LB    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto LH    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto LW    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto LBU   ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto LHU   ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto SB    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto SH    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto SW    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
 
-using AUIPC = InstructionImpl<InstTag::AUIPC, InstFormatU>;
-template <> auto AUIPC::EX() -> void { res = pc + imm; }
+template <> auto LB    ::MEM(Memory *mem) -> void { res = SExt<8>(mem->load<u8>(res)); }
+template <> auto LH    ::MEM(Memory *mem) -> void { res = SExt<16>(mem->load<u16>(res)); }
+template <> auto LW    ::MEM(Memory *mem) -> void { res = mem->load<u32>(res); }
+template <> auto LBU   ::MEM(Memory *mem) -> void { res = mem->load<u8>(res); }
+template <> auto LHU   ::MEM(Memory *mem) -> void { res = mem->load<u16>(res); }
+template <> auto SB    ::MEM(Memory *mem) -> void { mem->save<u8>(res, rs2); }
+template <> auto SH    ::MEM(Memory *mem) -> void { mem->save<u16>(res, rs2); }
+template <> auto SW    ::MEM(Memory *mem) -> void { mem->save<u32>(res, rs2); }
 
-// 2.4.2 Integer Register-Register Operations
+template <> auto JAL   ::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt<21>(imm); }
+template <> auto JALR  ::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt<12>(imm); }
 
-using ADD = InstructionImpl<InstTag::ADD, InstFormatR>;
-template <> auto ADD::EX() -> void { res = rs1 + rs2; }
-
-using SLT = InstructionImpl<InstTag::SLT, InstFormatR>;
-template <> auto SLT::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
-
-using SLTU = InstructionImpl<InstTag::SLTU, InstFormatR>;
-template <> auto SLTU::EX() -> void { res = (rs1 < rs2) ? 1 : 0; }
-
-using AND = InstructionImpl<InstTag::AND, InstFormatR>;
-template <> auto AND::EX() -> void { res = rs1 & rs2; }
-
-using OR = InstructionImpl<InstTag::OR, InstFormatR>;
-template <> auto OR::EX() -> void { res = rs1 | rs2; }
-
-using XOR = InstructionImpl<InstTag::XOR, InstFormatR>;
-template <> auto XOR::EX() -> void { res = rs1 ^ rs2; }
-
-using SLL = InstructionImpl<InstTag::SLL, InstFormatR>;
-template <> auto SLL::EX() -> void { res = rs1 << (rs2 & 31); }
-
-using SRL = InstructionImpl<InstTag::SRL, InstFormatR>;
-template <> auto SRL::EX() -> void { res = rs1 >> (rs2 & 31); }
-
-using SUB = InstructionImpl<InstTag::SUB, InstFormatR>;
-template <> auto SUB::EX() -> void { res = rs1 - rs2; }
-
-using SRA = InstructionImpl<InstTag::SRA, InstFormatR>;
-template <> auto SRA::EX() -> void { res = SExt32(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
-
-// 2.5 Control Transfer Instructions
-
-// 2.5.1 Unconditional Jumps
-
-using JAL = InstructionImpl<InstTag::JAL, InstFormatJ>;
-template <> auto JAL::EX() -> void { res = pc + 4; }
-template <> auto JAL::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt32<21>(imm); }
-
-using JALR = InstructionImpl<InstTag::JALR, InstFormatI>;
-template <> auto JALR::EX() -> void { res = pc + 4; }
-template <> auto JALR::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt32<12>(imm); }
-
-
-// 2.5.2 Conditional Branches
-
-using BEQ = InstructionImpl<InstTag::BEQ, InstFormatB>;
-template <> auto BEQ::EX() -> void { res = pc + (rs1 == rs2 ? SExt32<13>(imm) : 0); }
-
-using BNE = InstructionImpl<InstTag::BNE, InstFormatB>;
-template <> auto BNE::EX() -> void { res = pc + (rs1 != rs2 ? SExt32<13>(imm) : 0); }
-
-using BLT = InstructionImpl<InstTag::BLT, InstFormatB>;
-template <> auto BLT::EX() -> void { res = pc + (cast<i32>(rs1) < cast<i32>(rs2)) ? SExt32<13>(imm) : 0; }
-
-using BLTU = InstructionImpl<InstTag::BLTU, InstFormatB>;
-template <> auto BLTU::EX() -> void { res = pc + (rs1 < rs2) ? SExt32<13>(imm) : 0; }
-
-using BGE = InstructionImpl<InstTag::BGE, InstFormatB>;
-template <> auto BGE::EX() -> void { res = pc + (cast<i32>(rs1) > cast<i32>(rs2)) ? SExt32<13>(imm) : 0; }
-
-using BGEU = InstructionImpl<InstTag::BGEU, InstFormatB>;
-template <> auto BGEU::EX() -> void { res = pc + (rs1 > rs2) ? SExt32<13>(imm) : 0; }
-
-// 2.6 Load and Store Instructions
-
-using LB = InstructionImpl<InstTag::LB, InstFormatI>;
-template <> auto LB::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto LB::MEM(Memory *mem) -> void { res = SExt32<8>(mem->load<u8>(res)); }
-
-using LH = InstructionImpl<InstTag::LH, InstFormatI>;
-template <> auto LH::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto LH::MEM(Memory *mem) -> void { res = SExt32<16>(mem->load<u16>(res)); }
-
-using LW = InstructionImpl<InstTag::LW, InstFormatI>;
-template <> auto LW::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto LW::MEM(Memory *mem) -> void { res = mem->load<u32>(res); }
-
-using LBU = InstructionImpl<InstTag::LBU, InstFormatI>;
-template <> auto LBU::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto LBU::MEM(Memory *mem) -> void { res = mem->load<u8>(res); }
-
-using LHU = InstructionImpl<InstTag::LHU, InstFormatI>;
-template <> auto LHU::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto LHU::MEM(Memory *mem) -> void { res = mem->load<u16>(res); }
-
-using SB = InstructionImpl<InstTag::SB, InstFormatS>;
-template <> auto SB::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto SB::MEM(Memory *mem) -> void { mem->save<u8>(res, rs2); }
-
-using SH = InstructionImpl<InstTag::SH, InstFormatS>;
-template <> auto SH::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto SH::MEM(Memory *mem) -> void { mem->save<u16>(res, rs2); }
-
-using SW = InstructionImpl<InstTag::SW, InstFormatS>;
-template <> auto SW::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
-template <> auto SW::MEM(Memory *mem) -> void { mem->save<u32>(res, rs2); }
 
 /* --------- undef --------- */
 

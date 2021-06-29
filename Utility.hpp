@@ -20,16 +20,17 @@ inline auto match(const u32 bits) -> bool {
     return getbits<H, L>(bits) == value;
 }
 
-template <u32 length>
-inline auto SExt32(const u32 bits) -> u32 {
-    if (bits & (1 << (length - 1)))
-        return bits | ~((1 << length) - 1);
+template <u32 slength, u32 tlength = 32>
+inline auto SExt(const u32 bits) -> u32 {
+    if (bits & (1 << (slength - 1)))
+        return bits | (~((1 << slength) - 1) & ((1 << tlength) - 1));
     return bits;
 }
 
-inline auto SExt32(const u32 bits, const u32 length) -> u32 {
-    if (bits & (1 << (length - 1)))
-        return bits | ~((1 << length) - 1);
+inline auto SExt(const u32 bits, const u32 slength, const u32 tlength = 32)
+     -> u32 {
+    if (bits & (1 << (slength - 1)))
+        return bits | (~((1 << slength) - 1) & ((1 << tlength) - 1));
     return bits;
 }
 

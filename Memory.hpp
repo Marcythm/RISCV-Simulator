@@ -24,11 +24,11 @@ struct Memory {
 
     template <typename T>
     auto load(const u32 address) const -> T {
-        return *static_cast<T*>(mem + address);
+        return *((T*)(mem + address));
     }
 
     template <typename T>
     auto save(const u32 address, const T& value) -> void {
-        *static_cast<T*>(mem + address) = value;
+        *((T*)(mem + address)) = value;
     }
 };
