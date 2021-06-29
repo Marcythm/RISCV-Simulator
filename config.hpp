@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include <memory>
+#include <type_traits>
 
 using i8 = char;
 using i16 = short;

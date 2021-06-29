@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config.hpp"
-#include "EncodingTable.hpp"
+#include "InstTag.hpp"
 #include "Memory.hpp"
 #include "Utility.hpp"
 
@@ -15,49 +15,29 @@ struct Instruction {
     static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
         -> std::unique_ptr<Instruction>;
 
-    virtual auto Execute() -> void {}
-    virtual auto MemAccess() -> void {}
-    virtual auto WriteBack() -> void {}
+    virtual auto EX() -> void {}
+    virtual auto MEM(Memory *mem) -> void {}
+    virtual auto WB(u32 &pc, u32 reg[32]) -> void {}
 };
 
 /* ---------- InstFormats ---------- */
 
+struct InstFormat {};
 
-template <u32 opcode_, u32 funct3_, u32 funct7_>
-struct InstFormatR: Instruction {
-	static constexpr u32 opcode = opcode_;
-	static constexpr u32 funct3 = funct3_;
-	static constexpr u32 funct7 = funct7_;
-
+struct InstFormatR: Instruction, InstFormat {
     u32 rs1, rs2, rd;
-    u32 result;
+    u32 res;
     InstFormatR(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         rd(getbits<11, 7>(encoding)) {}
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatR>;
+    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = res; }
 };
 
-#define BEG_INST_R(mnemonic)                                            \
-    struct mnemonic: InstFormatR<EncodingTable::mnemonic::opcode,       \
-                                 EncodingTable::mnemonic::funct3,       \
-                                 EncodingTable::mnemonic::funct7> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatR(encoding, pc, reg) {}
-#define END_INST_R(mnemonic)                                            \
-    };
-
-
-template <u32 opcode_, u32 funct3_>
-struct InstFormatI: Instruction {
-	static constexpr u32 opcode = opcode_;
-	static constexpr u32 funct3 = funct3_;
-
+struct InstFormatI: Instruction, InstFormat {
     u32 rs1, rd, imm; // imm length: 12
-    u32 result;
+    u32 res;
     InstFormatI(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -65,27 +45,12 @@ struct InstFormatI: Instruction {
         imm(getbits<31, 20>(encoding)) {
         rs1 = reg[rs1];
     }
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatI>;
+    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = res; }
 };
 
-#define BEG_INST_I(mnemonic)                                            \
-    struct mnemonic: InstFormatI<EncodingTable::mnemonic::opcode,       \
-                                 EncodingTable::mnemonic::funct3> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatI(encoding, pc, reg) {}
-#define END_INST_I(mnemonic)                                            \
-    };
-
-
-template <u32 opcode_, u32 funct3_>
-struct InstFormatS: Instruction {
-	static constexpr u32 opcode = opcode_;
-	static constexpr u32 funct3 = funct3_;
-
+struct InstFormatS: Instruction, InstFormat {
     u32 rs1, rs2, imm; // imm length: 12
-    u32 result;
+    u32 res;
     InstFormatS(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -95,27 +60,11 @@ struct InstFormatS: Instruction {
         rs1 = reg[rs1];
         rs2 = reg[rs2];
     }
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatS>;
 };
 
-#define BEG_INST_S(mnemonic)                                            \
-    struct mnemonic: InstFormatS<EncodingTable::mnemonic::opcode,       \
-                                 EncodingTable::mnemonic::funct3> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatS(encoding, pc, reg) {}
-#define END_INST_S(mnemonic)                                            \
-    };
-
-
-template <u32 opcode_, u32 funct3_>
-struct InstFormatB: Instruction {
-	static constexpr u32 opcode = opcode_;
-	static constexpr u32 funct3 = funct3_;
-
+struct InstFormatB: Instruction, InstFormat {
     u32 rs1, rs2, imm; // imm length: 13
-    bool result;
+    u32 res;
     InstFormatB(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -128,49 +77,21 @@ struct InstFormatB: Instruction {
         rs1 = reg[rs1];
         rs2 = reg[rs2];
     }
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatB>;
+    auto WB(u32 &pc, u32 reg[32]) -> void { pc = res; }
 };
 
-#define BEG_INST_B(mnemonic)                                            \
-    struct mnemonic: InstFormatB<EncodingTable::mnemonic::opcode,       \
-                                 EncodingTable::mnemonic::funct3> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatB(encoding, pc, reg) {}
-#define END_INST_B(mnemonic)                                            \
-    };
-
-
-template <u32 opcode_>
-struct InstFormatU: Instruction {
-	static constexpr u32 opcode = opcode_;
-
-    u32 rd, imm; // imm length: 20
-    u32 result;
+struct InstFormatU: Instruction, InstFormat {
+    u32 rd, imm; // imm length: 32
+    u32 res;
     InstFormatU(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 12>(encoding) << 12) {}
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatU>;
 };
 
-#define BEG_INST_U(mnemonic)                                            \
-    struct mnemonic: InstFormatU<EncodingTable::mnemonic::opcode> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatU(encoding, pc, reg) {}
-#define END_INST_U(mnemonic)                                            \
-    };
-
-
-template <u32 opcode_>
-struct InstFormatJ: Instruction {
-	static constexpr u32 opcode = opcode_;
-
-    u32 rd, imm; // imm length: 20
-    u32 result;
+struct InstFormatJ: Instruction, InstFormat {
+    u32 rd, imm; // imm length: 21
+    u32 res;
     InstFormatJ(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
@@ -179,209 +100,160 @@ struct InstFormatJ: Instruction {
           + (getbits<20>(encoding) << 11)
           + (getbits<30, 21>(encoding) << 1)
         ) {}
-
-    static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
-        -> std::unique_ptr<InstFormatJ>;
 };
 
-#define BEG_INST_J(mnemonic)                                            \
-    struct mnemonic: InstFormatJ<EncodingTable::mnemonic::opcode> {     \
-        mnemonic(const u32 encoding, const u32 pc, const u32 reg[32]):  \
-            InstFormatJ(encoding, pc, reg) {}
-#define END_INST_J(mnemonic)                                            \
-    };
-
-
 /* ---------- Instructions ---------- */
+
+template <typename Tag, typename Fmt>
+struct InstructionImpl: Tag, Fmt {
+    static_assert(std::is_base_of_v<InstFormat, Fmt>, "Fmt must be one type of InstFormats");
+    InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
+        Fmt(encoding, pc, reg) {}
+
+    auto EX() -> void { Fmt::EX(); }
+    auto MEM(Memory *mem) -> void { Fmt::MEM(mem); }
+    auto WB(u32 &pc, u32 reg[32]) -> void { Fmt::WB(pc, reg); }
+};
 
 // 2.4 Integer Computational Instructions
 
 // 2.4.1 Integer Register-Immediate Instructions
 
-BEG_INST_I(ADDI)
-    auto Execute() -> void { result = cast<i32>(rs1) + cast<i32>(SignedExt32<12>(imm)); }
-END_INST_I(ADDI)
+using ADDI = InstructionImpl<InstTag::ADDI, InstFormatI>;
+template <> auto ADDI::EX() -> void { res = cast<i32>(rs1) + cast<i32>(SExt32<12>(imm)); }
 
-BEG_INST_I(SLTI)
-    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(SignedExt32<12>(imm))) ? 1 : 0; }
-END_INST_I(SLTI)
+using SLTI = InstructionImpl<InstTag::SLTI, InstFormatI>;
+template <> auto SLTI::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(SExt32<12>(imm))) ? 1 : 0; }
 
-BEG_INST_I(SLTIU)
-    auto Execute() -> void { result = (rs1 < SignedExt32<12>(imm)) ? 1 : 0; }
-END_INST_I(SLTIU)
+using SLTIU = InstructionImpl<InstTag::SLTIU, InstFormatI>;
+template <> auto SLTIU::EX() -> void { res = (rs1 < SExt32<12>(imm)) ? 1 : 0; }
 
-BEG_INST_I(ANDI)
-    auto Execute() -> void { result = rs1 & SignedExt32<12>(imm); }
-END_INST_I(ANDI)
+using ANDI = InstructionImpl<InstTag::ANDI, InstFormatI>;
+template <> auto ANDI::EX() -> void { res = rs1 & SExt32<12>(imm); }
 
-BEG_INST_I(ORI)
-    auto Execute() -> void { result = rs1 | SignedExt32<12>(imm); }
-END_INST_I(ORI)
+using ORI = InstructionImpl<InstTag::ORI, InstFormatI>;
+template <> auto ORI::EX() -> void { res = rs1 | SExt32<12>(imm); }
 
-BEG_INST_I(XORI)
-    auto Execute() -> void { result = rs1 ^ SignedExt32<12>(imm); }
-END_INST_I(XORI)
+using XORI = InstructionImpl<InstTag::XORI, InstFormatI>;
+template <> auto XORI::EX() -> void { res = rs1 ^ SExt32<12>(imm); }
 
-BEG_INST_I(SLLI)
-    auto Execute() -> void { result = rs1 << imm; }
-END_INST_I(SLLI)
+using SLLI = InstructionImpl<InstTag::SLLI, InstFormatI>;
+template <> auto SLLI::EX() -> void { res = rs1 << imm; }
 
-BEG_INST_I(SRLI)
-    auto Execute() -> void { result = rs1 >> imm; }
-END_INST_I(SRLI)
+using SRLI = InstructionImpl<InstTag::SRLI, InstFormatI>;
+template <> auto SRLI::EX() -> void { res = rs1 >> imm; }
 
-BEG_INST_I(SRAI)
-    auto Execute() -> void { result = SignedExt32(rs1 >> imm, 32 - imm); }
-END_INST_I(SRAI)
+using SRAI = InstructionImpl<InstTag::SRAI, InstFormatI>;
+template <> SRAI::InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
+    InstFormatI(encoding, pc, reg) { imm &= ~(1 << 10); }
+template <> auto SRAI::EX() -> void { res = SExt32(rs1 >> imm, 32 - imm); }
 
-BEG_INST_U(LUI)
-    auto Execute() -> void { result = imm; }
-END_INST_U(LUI)
+using LUI = InstructionImpl<InstTag::LUI, InstFormatU>;
+template <> auto LUI::EX() -> void { res = imm; }
 
-BEG_INST_U(AUIPC)
-    auto Execute() -> void { result = pc + imm; }
-END_INST_U(AUIPC)
+using AUIPC = InstructionImpl<InstTag::AUIPC, InstFormatU>;
+template <> auto AUIPC::EX() -> void { res = pc + imm; }
 
 // 2.4.2 Integer Register-Register Operations
 
-BEG_INST_R(ADD)
-    auto Execute() -> void { result = rs1 + rs2; }
-END_INST_R(ADD)
+using ADD = InstructionImpl<InstTag::ADD, InstFormatR>;
+template <> auto ADD::EX() -> void { res = rs1 + rs2; }
 
-BEG_INST_R(SLT)
-    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
-END_INST_R(SLT)
+using SLT = InstructionImpl<InstTag::SLT, InstFormatR>;
+template <> auto SLT::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
 
-BEG_INST_R(SLTU)
-    auto Execute() -> void { result = (rs1 < rs2) ? 1 : 0; }
-END_INST_R(SLTU)
+using SLTU = InstructionImpl<InstTag::SLTU, InstFormatR>;
+template <> auto SLTU::EX() -> void { res = (rs1 < rs2) ? 1 : 0; }
 
-BEG_INST_R(AND)
-    auto Execute() -> void { result = rs1 & rs2; }
-END_INST_R(AND)
+using AND = InstructionImpl<InstTag::AND, InstFormatR>;
+template <> auto AND::EX() -> void { res = rs1 & rs2; }
 
-BEG_INST_R(OR)
-    auto Execute() -> void { result = rs1 | rs2; }
-END_INST_R(OR)
+using OR = InstructionImpl<InstTag::OR, InstFormatR>;
+template <> auto OR::EX() -> void { res = rs1 | rs2; }
 
-BEG_INST_R(XOR)
-    auto Execute() -> void { result = rs1 ^ rs2; }
-END_INST_R(XOR)
+using XOR = InstructionImpl<InstTag::XOR, InstFormatR>;
+template <> auto XOR::EX() -> void { res = rs1 ^ rs2; }
 
-BEG_INST_R(SLL)
-    auto Execute() -> void { result = rs1 << (rs2 & 31); }
-END_INST_R(SLL)
+using SLL = InstructionImpl<InstTag::SLL, InstFormatR>;
+template <> auto SLL::EX() -> void { res = rs1 << (rs2 & 31); }
 
-BEG_INST_R(SRL)
-    auto Execute() -> void { result = rs1 >> (rs2 & 31); }
-END_INST_R(SRL)
+using SRL = InstructionImpl<InstTag::SRL, InstFormatR>;
+template <> auto SRL::EX() -> void { res = rs1 >> (rs2 & 31); }
 
-BEG_INST_R(SUB)
-    auto Execute() -> void { result = rs1 - rs2; }
-END_INST_R(SUB)
+using SUB = InstructionImpl<InstTag::SUB, InstFormatR>;
+template <> auto SUB::EX() -> void { res = rs1 - rs2; }
 
-BEG_INST_R(SRA)
-    auto Execute() -> void { result = SignedExt32(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
-END_INST_R(SRA)
+using SRA = InstructionImpl<InstTag::SRA, InstFormatR>;
+template <> auto SRA::EX() -> void { res = SExt32(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
 
 // 2.5 Control Transfer Instructions
 
 // 2.5.1 Unconditional Jumps
 
-BEG_INST_J(JAL)
-    auto Execute() -> void { result = pc + 4; }
-    // auto WriteBack() -> void { pc = ; }
-END_INST_J(JAL)
+using JAL = InstructionImpl<InstTag::JAL, InstFormatJ>;
+template <> auto JAL::EX() -> void { res = pc + 4; }
+template <> auto JAL::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt32<21>(imm); }
 
-BEG_INST_I(JALR)
-    auto Execute() -> void { result = pc + 4; }
-END_INST_I(JALR)
+using JALR = InstructionImpl<InstTag::JALR, InstFormatI>;
+template <> auto JALR::EX() -> void { res = pc + 4; }
+template <> auto JALR::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt32<12>(imm); }
 
 
 // 2.5.2 Conditional Branches
 
-BEG_INST_B(BEQ)
-    auto Execute() -> void { result = (rs1 == rs2); }
-END_INST_B(BEQ)
+using BEQ = InstructionImpl<InstTag::BEQ, InstFormatB>;
+template <> auto BEQ::EX() -> void { res = pc + (rs1 == rs2 ? SExt32<13>(imm) : 0); }
 
-BEG_INST_B(BNE)
-    auto Execute() -> void { result = (rs1 != rs2); }
-END_INST_B(BNE)
+using BNE = InstructionImpl<InstTag::BNE, InstFormatB>;
+template <> auto BNE::EX() -> void { res = pc + (rs1 != rs2 ? SExt32<13>(imm) : 0); }
 
-BEG_INST_B(BLT)
-    auto Execute() -> void { result = (cast<i32>(rs1) < cast<i32>(rs2)); }
-END_INST_B(BLT)
+using BLT = InstructionImpl<InstTag::BLT, InstFormatB>;
+template <> auto BLT::EX() -> void { res = pc + (cast<i32>(rs1) < cast<i32>(rs2)) ? SExt32<13>(imm) : 0; }
 
-BEG_INST_B(BLTU)
-    auto Execute() -> void { result = (rs1 < rs2); }
-END_INST_B(BLTU)
+using BLTU = InstructionImpl<InstTag::BLTU, InstFormatB>;
+template <> auto BLTU::EX() -> void { res = pc + (rs1 < rs2) ? SExt32<13>(imm) : 0; }
 
-BEG_INST_B(BGE)
-    auto Execute() -> void { result = (cast<i32>(rs1) > cast<i32>(rs2)); }
-END_INST_B(BGE)
+using BGE = InstructionImpl<InstTag::BGE, InstFormatB>;
+template <> auto BGE::EX() -> void { res = pc + (cast<i32>(rs1) > cast<i32>(rs2)) ? SExt32<13>(imm) : 0; }
 
-BEG_INST_B(BGEU)
-    auto Execute() -> void { result = (rs1 > rs2); }
-END_INST_B(BGEU)
+using BGEU = InstructionImpl<InstTag::BGEU, InstFormatB>;
+template <> auto BGEU::EX() -> void { res = pc + (rs1 > rs2) ? SExt32<13>(imm) : 0; }
 
 // 2.6 Load and Store Instructions
 
-BEG_INST_I(LB)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_I(LB)
+using LB = InstructionImpl<InstTag::LB, InstFormatI>;
+template <> auto LB::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto LB::MEM(Memory *mem) -> void { res = SExt32<8>(mem->load<u8>(res)); }
 
-BEG_INST_I(LH)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_I(LH)
+using LH = InstructionImpl<InstTag::LH, InstFormatI>;
+template <> auto LH::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto LH::MEM(Memory *mem) -> void { res = SExt32<16>(mem->load<u16>(res)); }
 
-BEG_INST_I(LW)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_I(LW)
+using LW = InstructionImpl<InstTag::LW, InstFormatI>;
+template <> auto LW::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto LW::MEM(Memory *mem) -> void { res = mem->load<u32>(res); }
 
-BEG_INST_I(LBU)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_I(LBU)
+using LBU = InstructionImpl<InstTag::LBU, InstFormatI>;
+template <> auto LBU::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto LBU::MEM(Memory *mem) -> void { res = mem->load<u8>(res); }
 
-BEG_INST_I(LHU)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_I(LHU)
+using LHU = InstructionImpl<InstTag::LHU, InstFormatI>;
+template <> auto LHU::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto LHU::MEM(Memory *mem) -> void { res = mem->load<u16>(res); }
 
-BEG_INST_S(SB)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_S(SB)
+using SB = InstructionImpl<InstTag::SB, InstFormatS>;
+template <> auto SB::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto SB::MEM(Memory *mem) -> void { mem->save<u8>(res, rs2); }
 
-BEG_INST_S(SH)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_S(SH)
+using SH = InstructionImpl<InstTag::SH, InstFormatS>;
+template <> auto SH::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto SH::MEM(Memory *mem) -> void { mem->save<u16>(res, rs2); }
 
-BEG_INST_S(SW)
-    auto Execute() -> void { result = rs1 + cast<i32>(SignedExt32<12>(imm)); }
-    // auto MemAccess() -> void { result = result; }
-END_INST_S(SW)
+using SW = InstructionImpl<InstTag::SW, InstFormatS>;
+template <> auto SW::EX() -> void { res = rs1 + cast<i32>(SExt32<12>(imm)); }
+template <> auto SW::MEM(Memory *mem) -> void { mem->save<u32>(res, rs2); }
 
 /* --------- undef --------- */
 
-#undef BEG_INST_R
-#undef END_INST_R
-
-#undef BEG_INST_I
-#undef END_INST_I
-
-#undef BEG_INST_S
-#undef END_INST_S
-
-#undef BEG_INST_B
-#undef END_INST_B
-
-#undef BEG_INST_U
-#undef END_INST_U
-
-#undef BEG_INST_J
-#undef END_INST_J
+// #undef BEG_INST
+// #undef END_INST

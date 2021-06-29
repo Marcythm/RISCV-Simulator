@@ -5,7 +5,7 @@
 template <u32 H, u32 L = H>
 inline auto getbits(const u32 bits) -> u32 {
     // return bits{H - L}
-    return bits & (((1u << (H - L + 1)) - 1u) << L);
+    return (bits >> L) & ((1u << (H - L + 1)) - 1u);
 }
 
 template <u32 H, u32 L = H>
@@ -21,13 +21,13 @@ inline auto match(const u32 bits) -> bool {
 }
 
 template <u32 length>
-inline auto SignedExt32(const u32 bits) -> u32 {
+inline auto SExt32(const u32 bits) -> u32 {
     if (bits & (1 << (length - 1)))
         return bits | ~((1 << length) - 1);
     return bits;
 }
 
-inline auto SignedExt32(const u32 bits, const u32 length) -> u32 {
+inline auto SExt32(const u32 bits, const u32 length) -> u32 {
     if (bits & (1 << (length - 1)))
         return bits | ~((1 << length) - 1);
     return bits;
@@ -36,4 +36,16 @@ inline auto SignedExt32(const u32 bits, const u32 length) -> u32 {
 template <typename T, typename U>
 inline auto cast(const U bits) -> T {
     return static_cast<T>(bits);
+}
+
+inline auto GetOpcode(const u32 bits) -> u32 {
+    return getbits<6, 0>(bits);
+}
+
+inline auto GetFunct3(const u32 bits) -> u32 {
+    return getbits<14, 12>(bits);
+}
+
+inline auto GetFunct7(const u32 bits) -> u32 {
+    return getbits<31, 25>(bits);
 }

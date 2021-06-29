@@ -1,7 +1,7 @@
 #include "Instruction.hpp"
 
 #define RET(mnemonic) return std::make_unique<mnemonic>(encoding, pc, reg)
-#define CASE(mnemonic, type) case EncodingTable::mnemonic::type: RET(mnemonic)
+#define CASE(mnemonic, type) case mnemonic::type: RET(mnemonic)
 
 auto Instruction::Decode(const u32 encoding, const u32 pc, const u32 reg[32])
     -> std::unique_ptr<Instruction> {

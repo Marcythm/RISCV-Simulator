@@ -23,12 +23,12 @@ struct Memory {
     }
 
     template <typename T>
-    auto read(const u32 address) const -> T {
+    auto load(const u32 address) const -> T {
         return *static_cast<T*>(mem + address);
     }
 
     template <typename T>
-    auto write(const u32 address, const T& value) -> void {
+    auto save(const u32 address, const T& value) -> void {
         *static_cast<T*>(mem + address) = value;
     }
 };
