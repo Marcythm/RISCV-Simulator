@@ -26,45 +26,43 @@ struct InstFormat {};
 
 struct InstFormatR: Instruction, InstFormat {
     u32 rs1, rs2, rd;
-    u32 res;
+    u32 rs1v, rs2v, rdv;
     InstFormatR(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
-        rd(getbits<11, 7>(encoding)) {}
-    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = res; }
+        rd(getbits<11, 7>(encoding)),
+        rs1v(reg[rs1]), rs2v(reg[rs2]) {}
+    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = rdv; }
 };
 
 struct InstFormatI: Instruction, InstFormat {
     u32 rs1, rd, imm; // imm length: 12
-    u32 res;
+    u32 rs1v, rdv;
     InstFormatI(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rd(getbits<11, 7>(encoding)),
-        imm(getbits<31, 20>(encoding)) {
-        rs1 = reg[rs1];
-    }
-    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = res; }
+        imm(getbits<31, 20>(encoding)),
+        rs1v(reg[rs1]) {}
+    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = rdv; }
 };
 
 struct InstFormatS: Instruction, InstFormat {
     u32 rs1, rs2, imm; // imm length: 12
-    u32 res;
+    u32 rs1v, rs2v, addr;
     InstFormatS(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         imm((getbits<31, 25>(encoding) << 5)
-           + getbits<11, 7>(encoding)) {
-        rs1 = reg[rs1];
-        rs2 = reg[rs2];
-    }
+           + getbits<11, 7>(encoding)),
+        rs1v(reg[rs1]), rs2v(reg[rs2]) {}
 };
 
 struct InstFormatB: Instruction, InstFormat {
     u32 rs1, rs2, imm; // imm length: 13
-    u32 res;
+    u32 rs1v, rs2v, pcv;
     InstFormatB(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rs1(getbits<19, 15>(encoding)),
@@ -72,26 +70,24 @@ struct InstFormatB: Instruction, InstFormat {
         imm((getbits<31>(encoding) << 12)
           + (getbits<7>(encoding) << 11)
           + (getbits<30, 25>(encoding) << 5)
-          + (getbits<11, 8>(encoding) << 1)
-        ) {
-        rs1 = reg[rs1];
-        rs2 = reg[rs2];
-    }
-    auto WB(u32 &pc, u32 reg[32]) -> void { pc = res; }
+          + (getbits<11, 8>(encoding) << 1)),
+        rs1v(reg[rs1]), rs2v(reg[rs2]) {}
+    auto WB(u32 &pc, u32 reg[32]) -> void { pc = pcv; }
 };
 
 struct InstFormatU: Instruction, InstFormat {
     u32 rd, imm; // imm length: 32
-    u32 res;
+    u32 rdv;
     InstFormatU(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 12>(encoding) << 12) {}
+    auto WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = rdv; }
 };
 
 struct InstFormatJ: Instruction, InstFormat {
     u32 rd, imm; // imm length: 21
-    u32 res;
+    u32 rdv, pcv;
     InstFormatJ(const u32 encoding, const u32 pc, const u32 reg[32]):
         Instruction(encoding, pc),
         rd(getbits<11, 7>(encoding)),
@@ -154,57 +150,57 @@ using SH    = InstructionImpl<InstTag::SH,    InstFormatS>;
 using SW    = InstructionImpl<InstTag::SW,    InstFormatS>;
 
 template <> SRAI::InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
-    InstFormatI(encoding, pc, reg) { imm &= ~(1 << 10); }
+    InstFormatI(encoding & ~(1 << 30), pc, reg) {}
 
-template <> auto ADDI  ::EX() -> void { res = cast<i32>(rs1) + cast<i32>(SExt<12>(imm)); }
-template <> auto SLTI  ::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(SExt<12>(imm))) ? 1 : 0; }
-template <> auto SLTIU ::EX() -> void { res = (rs1 < SExt<12>(imm)) ? 1 : 0; }
-template <> auto ANDI  ::EX() -> void { res = rs1 & SExt<12>(imm); }
-template <> auto ORI   ::EX() -> void { res = rs1 | SExt<12>(imm); }
-template <> auto XORI  ::EX() -> void { res = rs1 ^ SExt<12>(imm); }
-template <> auto SLLI  ::EX() -> void { res = rs1 << imm; }
-template <> auto SRLI  ::EX() -> void { res = rs1 >> imm; }
-template <> auto SRAI  ::EX() -> void { res = SExt(rs1 >> imm, 32 - imm); }
-template <> auto LUI   ::EX() -> void { res = imm; }
-template <> auto AUIPC ::EX() -> void { res = pc + imm; }
-template <> auto ADD   ::EX() -> void { res = rs1 + rs2; }
-template <> auto SLT   ::EX() -> void { res = (cast<i32>(rs1) < cast<i32>(rs2)) ? 1 : 0; }
-template <> auto SLTU  ::EX() -> void { res = (rs1 < rs2) ? 1 : 0; }
-template <> auto AND   ::EX() -> void { res = rs1 & rs2; }
-template <> auto OR    ::EX() -> void { res = rs1 | rs2; }
-template <> auto XOR   ::EX() -> void { res = rs1 ^ rs2; }
-template <> auto SLL   ::EX() -> void { res = rs1 << (rs2 & 31); }
-template <> auto SRL   ::EX() -> void { res = rs1 >> (rs2 & 31); }
-template <> auto SUB   ::EX() -> void { res = rs1 - rs2; }
-template <> auto SRA   ::EX() -> void { res = SExt(rs1 >> (rs2 & 31), 32 - (rs2 & 31)); }
-template <> auto JAL   ::EX() -> void { res = pc + 4; }
-template <> auto JALR  ::EX() -> void { res = pc + 4; }
-template <> auto BEQ   ::EX() -> void { res = pc + (rs1 == rs2 ? SExt<13>(imm) : 0); }
-template <> auto BNE   ::EX() -> void { res = pc + (rs1 != rs2 ? SExt<13>(imm) : 0); }
-template <> auto BLT   ::EX() -> void { res = pc + ((cast<i32>(rs1) < cast<i32>(rs2)) ? SExt<13>(imm) : 0); }
-template <> auto BLTU  ::EX() -> void { res = pc + ((rs1 < rs2) ? SExt<13>(imm) : 0); }
-template <> auto BGE   ::EX() -> void { res = pc + ((cast<i32>(rs1) > cast<i32>(rs2)) ? SExt<13>(imm) : 0); }
-template <> auto BGEU  ::EX() -> void { res = pc + ((rs1 > rs2) ? SExt<13>(imm) : 0); }
-template <> auto LB    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto LH    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto LW    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto LBU   ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto LHU   ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto SB    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto SH    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
-template <> auto SW    ::EX() -> void { res = rs1 + cast<i32>(SExt<12>(imm)); }
+template <> auto ADDI  ::EX() -> void { rdv = cast<i32>(rs1v) + cast<i32>(SExt<12>(imm)); }
+template <> auto SLTI  ::EX() -> void { rdv = (cast<i32>(rs1v) < cast<i32>(SExt<12>(imm))) ? 1 : 0; }
+template <> auto SLTIU ::EX() -> void { rdv = (rs1v < SExt<12>(imm)) ? 1 : 0; }
+template <> auto ANDI  ::EX() -> void { rdv = rs1v & SExt<12>(imm); }
+template <> auto ORI   ::EX() -> void { rdv = rs1v | SExt<12>(imm); }
+template <> auto XORI  ::EX() -> void { rdv = rs1v ^ SExt<12>(imm); }
+template <> auto SLLI  ::EX() -> void { rdv = rs1v << imm; }
+template <> auto SRLI  ::EX() -> void { rdv = rs1v >> imm; }
+template <> auto SRAI  ::EX() -> void { rdv = SExt(rs1v >> imm, 32 - imm); }
+template <> auto LUI   ::EX() -> void { rdv = imm; }
+template <> auto AUIPC ::EX() -> void { rdv = pc + imm; }
+template <> auto ADD   ::EX() -> void { rdv = rs1v + rs2v; }
+template <> auto SLT   ::EX() -> void { rdv = (cast<i32>(rs1v) < cast<i32>(rs2v)) ? 1 : 0; }
+template <> auto SLTU  ::EX() -> void { rdv = (rs1v < rs2v) ? 1 : 0; }
+template <> auto AND   ::EX() -> void { rdv = rs1v & rs2v; }
+template <> auto OR    ::EX() -> void { rdv = rs1v | rs2v; }
+template <> auto XOR   ::EX() -> void { rdv = rs1v ^ rs2v; }
+template <> auto SLL   ::EX() -> void { rdv = rs1v << (rs2v & 31); }
+template <> auto SRL   ::EX() -> void { rdv = rs1v >> (rs2v & 31); }
+template <> auto SUB   ::EX() -> void { rdv = rs1v - rs2v; }
+template <> auto SRA   ::EX() -> void { rdv = SExt(rs1v >> (rs2v & 31), 32 - (rs2v & 31)); }
+template <> auto JAL   ::EX() -> void { rdv = pc + 4; pcv = pc + SExt<21>(imm); }
+template <> auto JALR  ::EX() -> void { rdv = pc + 4; /*pcv = rs1v + SExt<12>(imm);*/ } // TODO: add pcv field for JALR
+template <> auto BEQ   ::EX() -> void { pcv = pc + (rs1v == rs2v ? SExt<13>(imm) : 0); }
+template <> auto BNE   ::EX() -> void { pcv = pc + (rs1v != rs2v ? SExt<13>(imm) : 0); }
+template <> auto BLT   ::EX() -> void { pcv = pc + ((cast<i32>(rs1v) < cast<i32>(rs2v)) ? SExt<13>(imm) : 0); }
+template <> auto BLTU  ::EX() -> void { pcv = pc + ((rs1v < rs2v) ? SExt<13>(imm) : 0); }
+template <> auto BGE   ::EX() -> void { pcv = pc + ((cast<i32>(rs1v) > cast<i32>(rs2v)) ? SExt<13>(imm) : 0); }
+template <> auto BGEU  ::EX() -> void { pcv = pc + ((rs1v > rs2v) ? SExt<13>(imm) : 0); }
+template <> auto LB    ::EX() -> void { rdv = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto LH    ::EX() -> void { rdv = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto LW    ::EX() -> void { rdv = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto LBU   ::EX() -> void { rdv = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto LHU   ::EX() -> void { rdv = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto SB    ::EX() -> void { addr = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto SH    ::EX() -> void { addr = rs1v + cast<i32>(SExt<12>(imm)); }
+template <> auto SW    ::EX() -> void { addr = rs1v + cast<i32>(SExt<12>(imm)); }
 
-template <> auto LB    ::MEM(Memory *mem) -> void { res = SExt<8>(mem->load<u8>(res)); }
-template <> auto LH    ::MEM(Memory *mem) -> void { res = SExt<16>(mem->load<u16>(res)); }
-template <> auto LW    ::MEM(Memory *mem) -> void { res = mem->load<u32>(res); }
-template <> auto LBU   ::MEM(Memory *mem) -> void { res = mem->load<u8>(res); }
-template <> auto LHU   ::MEM(Memory *mem) -> void { res = mem->load<u16>(res); }
-template <> auto SB    ::MEM(Memory *mem) -> void { mem->save<u8>(res, rs2); }
-template <> auto SH    ::MEM(Memory *mem) -> void { mem->save<u16>(res, rs2); }
-template <> auto SW    ::MEM(Memory *mem) -> void { mem->save<u32>(res, rs2); }
+template <> auto LB    ::MEM(Memory *mem) -> void { rdv = SExt<8>(mem->load<u8>(rdv)); }
+template <> auto LH    ::MEM(Memory *mem) -> void { rdv = SExt<16>(mem->load<u16>(rdv)); }
+template <> auto LW    ::MEM(Memory *mem) -> void { rdv = mem->load<u32>(rdv); }
+template <> auto LBU   ::MEM(Memory *mem) -> void { rdv = mem->load<u8>(rdv); }
+template <> auto LHU   ::MEM(Memory *mem) -> void { rdv = mem->load<u16>(rdv); }
+template <> auto SB    ::MEM(Memory *mem) -> void { mem->save<u8>(addr, rs2v); }
+template <> auto SH    ::MEM(Memory *mem) -> void { mem->save<u16>(addr, rs2v); }
+template <> auto SW    ::MEM(Memory *mem) -> void { mem->save<u32>(addr, rs2v); }
 
-template <> auto JAL   ::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt<21>(imm); }
-template <> auto JALR  ::WB(u32 &pc, u32 reg[32]) -> void { pc += SExt<12>(imm); }
+template <> auto JAL   ::WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = rdv; pc = pcv; }
+template <> auto JALR  ::WB(u32 &pc, u32 reg[32]) -> void { reg[rd] = rdv; pc = /*pcv*/ rs1v + SExt<12>(imm); }
 
 
 /* --------- undef --------- */

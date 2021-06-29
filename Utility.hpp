@@ -22,9 +22,15 @@ inline auto match(const u32 bits) -> bool {
 
 template <u32 slength, u32 tlength = 32>
 inline auto SExt(const u32 bits) -> u32 {
-    if (bits & (1 << (slength - 1)))
-        return bits | (~((1 << slength) - 1) & ((1 << tlength) - 1));
-    return bits;
+    if constexpr (tlength >= 32) {
+        if (bits & (1 << (slength - 1)))
+            return bits | ~((1 << slength) - 1);
+        return bits;
+    } else {
+        if (bits & (1 << (slength - 1)))
+            return bits | (~((1 << slength) - 1) & ((1 << tlength) - 1));
+        return bits;
+    }
 }
 
 inline auto SExt(const u32 bits, const u32 slength, const u32 tlength = 32)

@@ -5,7 +5,7 @@
 #include "Instruction.hpp"
 
 struct Executor {
-    Instruction IF, ID, EX, MEM, WB;
+    std::unique_ptr<Instruction> IF, ID, EX, MEM, WB;
     u32 pc;
 
     auto InstFetch(u32 &pc_, Memory *mem) -> void;
