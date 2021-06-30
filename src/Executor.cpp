@@ -6,7 +6,7 @@ auto Executor::InstFetch() -> void {
 }
 
 auto Executor::InstDecode() -> void {
-    IF_ID = Instruction::Decode(IF->encoding, IF->pc, reg);
+    IF_ID = Instruction::Decode(IF_ID->encoding, IF_ID->pc, reg);
 }
 
 auto Executor::InstExecute() -> void {
@@ -37,7 +37,6 @@ auto Executor::DumpRegState() -> void {
 
 auto Executor::exec(std::istream &input) -> u32 {
     initMem(input); pc = 0;
-    i32 cnt = 0;
     while (true) {
         InstFetch(); IF_ID = IF;
         InstDecode(); ID_EX = IF_ID;

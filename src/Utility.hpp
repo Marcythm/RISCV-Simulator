@@ -20,23 +20,21 @@ constexpr inline auto match(const u32 bits) -> bool {
     return getbits<H, L>(bits) == value;
 }
 
-template <u32 length, u32 XLEN = 32>
+template <u32 length>
 constexpr inline auto SExt(const u32 bits) -> u32 {
-    if constexpr (XLEN >= 32) {
-        if (bits & (1 << (length - 1)))
-            return bits | ~((1 << length) - 1);
+    if constexpr (length >= 32)
         return bits;
-    } else {
-        if (bits & (1 << (length - 1)))
-            return bits | (~((1 << length) - 1) & ((1 << XLEN) - 1));
-        return bits;
-    }
+    if (bits & (1u << (length - 1u)))
+        return bits | ~((1u << length) - 1u);
+    return bits;
 }
 
 constexpr inline auto SExt(const u32 bits, const u32 length, const u32 XLEN = 32)
      -> u32 {
+    if (length >= 32)
+        return bits;
     if (bits & (1 << (length - 1)))
-        return bits | (~((1 << length) - 1) & ((1 << XLEN) - 1));
+        return bits | (~((1 << length) - 1));
     return bits;
 }
 
@@ -77,7 +75,7 @@ constexpr inline auto GetFunct7(const u32 bits) -> u32 {
     return getbits<31, 25>(bits);
 }
 
-inline auto putn(char c, i32 n) -> void {
+inline auto putn(const char c, i32 n) -> void {
     while (n-- > 0) putchar(c);
 }
 

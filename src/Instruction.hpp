@@ -9,15 +9,16 @@ struct Instruction {
     u32 encoding;
     u32 pc;
 
-    Instruction(const u32 encoding, const u32 pc, const u32 reg[32]):
+    Instruction(const u32 encoding, const u32 pc, const u32 [32]):
         encoding(encoding), pc(pc) {}
+    virtual ~Instruction() {};
 
     static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
         -> InstPtr;
 
     virtual auto Execute() -> void {}
-    virtual auto MemAccess(Memory &mem) -> void {}
-    virtual auto WriteBack(u32 &pc, u32 reg[32]) -> void {}
+    virtual auto MemAccess(Memory &) -> void {}
+    virtual auto WriteBack(u32 &, u32 [32]) -> void {}
 
     virtual auto dump() -> void {
         printf("# encoding: %02x %02x %02x %02x, pc: %x\n",
@@ -39,8 +40,9 @@ struct InstFormatR: Instruction {
         rs2(getbits<24, 20>(encoding)),
         rd(getbits<11, 7>(encoding)),
         rs1v(reg[rs1]), rs2v(reg[rs2]) {}
-    auto WriteBack(u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
+    ~InstFormatR() {}
 
+    auto WriteBack(u32 &, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
     auto dump() -> void {
         // $rd, $rs1, $rs2
         AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, %s", regname[rd], regname[rs1], regname[rs2]);
@@ -57,8 +59,9 @@ struct InstFormatI: Instruction {
         rd(getbits<11, 7>(encoding)),
         imm12(SExt<12>(getbits<31, 20>(encoding))),
         rs1v(reg[rs1]) {}
-    auto WriteBack(u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
+    ~InstFormatI() {}
 
+    auto WriteBack(u32 &, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
     auto dump() -> void {
         // $rd, $rs1, $imm12
         AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rd], regname[rs1], imm12);
@@ -78,6 +81,7 @@ struct InstFormatS: Instruction {
            + getbits<11, 7>(encoding)
         )),
         rs1v(reg[rs1]), rs2v(reg[rs2]) {}
+    ~InstFormatS() {}
 
     auto dump() -> void {
         // $rs2, $imm12($rs1)
@@ -100,8 +104,9 @@ struct InstFormatB: Instruction {
           + (getbits<11, 8>(encoding) << 1)
         )),
         rs1v(reg[rs1]), rs2v(reg[rs2]) {}
-    auto WriteBack(u32 &pc, u32 reg[32]) -> void { if (cond) pc = pcv; }
+    ~InstFormatB() {}
 
+    auto WriteBack(u32 &pc, u32 [32]) -> void { if (cond) pc = pcv; }
     auto dump() -> void {
         // $rs1, $rs2, $imm13
         AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], imm13);
@@ -116,8 +121,9 @@ struct InstFormatU: Instruction {
         Instruction(encoding, pc, reg),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 12>(encoding) << 12) {}
-    auto WriteBack(u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
+    ~InstFormatU() {}
 
+    auto WriteBack(u32 &, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
     auto dump() -> void {
         // $rd, $imm20
         AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm);
@@ -137,6 +143,7 @@ struct InstFormatJ: Instruction {
           + (getbits<20>(encoding) << 11)
           + (getbits<30, 21>(encoding) << 1)
         )) {}
+    ~InstFormatJ() {}
 
     auto dump() -> void {
         // $rd, $imm21
@@ -158,6 +165,7 @@ struct InstructionImpl: Tag, Fmt {
     std::tuple<AdditionalFields...> fields;
     InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
         fmt(encoding, pc, reg) {}
+    ~InstructionImpl() {}
 
     auto Execute() -> void { fmt::Execute(); }
     auto MemAccess(Memory &mem) -> void { fmt::MemAccess(mem); }
@@ -178,6 +186,7 @@ struct InstructionImpl<Tag, Fmt, isTerminal>: Tag, Fmt {
 
     InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
         fmt(encoding, pc, reg) {}
+    ~InstructionImpl() {}
 
     auto Execute() -> void { fmt::Execute(); }
     auto MemAccess(Memory &mem) -> void { fmt::MemAccess(mem); }
@@ -290,9 +299,9 @@ specialize(LH,    MemAccess) (Memory &mem) -> void { rdv = SExt<16>(mem.load<u16
 specialize(LW,    MemAccess) (Memory &mem) -> void { rdv = mem.load<u32>(std::get<0>(fields)); }
 specialize(LBU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u8>(std::get<0>(fields)); }
 specialize(LHU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u16>(std::get<0>(fields)); }
-specialize(SB,    MemAccess) (Memory &mem) -> void { mem.store<u8>(addr, rs2v); }
-specialize(SH,    MemAccess) (Memory &mem) -> void { mem.store<u16>(addr, rs2v); }
-specialize(SW,    MemAccess) (Memory &mem) -> void { mem.store<u32>(addr, rs2v); }
+specialize(SB,    MemAccess) (Memory &mem) -> void { mem.store<u8>(addr, cast<u8>(rs2v)); }
+specialize(SH,    MemAccess) (Memory &mem) -> void { mem.store<u16>(addr, cast<u16>(rs2v)); }
+specialize(SW,    MemAccess) (Memory &mem) -> void { mem.store<u32>(addr, cast<u32>(rs2v)); }
 
 specialize(JAL,   WriteBack) (u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; pc = pcv; }
 specialize(JALR,  WriteBack) (u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; pc = std::get<0>(fields); }
