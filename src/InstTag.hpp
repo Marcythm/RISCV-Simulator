@@ -116,7 +116,13 @@ namespace InstTag {
     GENTAG_S(SH,    "sh",    OPC_STORE, 0b001);
     GENTAG_S(SW,    "sw",    OPC_STORE, 0b010);
 
+    GENTAG(Unknown, 0b0000000);
+
     #undef GENTAG
-    #undef GENTAG3
     #undef GENTAG_R
+    #undef GENTAG_I
+    #undef GENTAG_S
+    #undef GENTAG_B
+    #undef GENTAG_U
+    #undef GENTAG_J
 }

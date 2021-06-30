@@ -1,7 +1,7 @@
 #include "Executor.hpp"
 
 auto Executor::InstFetch() -> InstPtr {
-    auto instptr = std::make_shared<Instruction>(mem.load<u32>(pc), pc);
+    auto instptr = std::make_shared<Instruction>(mem.load<u32>(pc), pc, reg);
     pc += 4;
     return instptr;
 }

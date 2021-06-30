@@ -68,5 +68,6 @@ auto Instruction::Decode(const u32 encoding, const u32 pc, const u32 reg[32])
     }
     if constexpr (not NOASSERT)
         assert(false && "no matching encoding");
+    else RET(Unknown);
     return nullptr;
 }

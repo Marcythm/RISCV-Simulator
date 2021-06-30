@@ -12,7 +12,7 @@ struct Instruction {
     u32 encoding;
     u32 pc;
 
-    Instruction(const u32 encoding, const u32 pc):
+    Instruction(const u32 encoding, const u32 pc, const u32 reg[32]):
         encoding(encoding), pc(pc) {}
 
     static auto Decode(const u32 encoding, const u32 pc, const u32 reg[32])
@@ -23,7 +23,7 @@ struct Instruction {
     virtual auto WriteBack(u32 &pc, u32 reg[32]) -> void {}
 
     virtual auto dump() -> void {
-        printf("# encoding: [%02x,%02x,%02x,%02x], pc: %x\n",
+        printf("# encoding: %02x %02x %02x %02x, pc: %x\n",
             getbits<7, 0>(encoding), getbits<15, 8>(encoding),
             getbits<23, 16>(encoding), getbits<31, 24>(encoding), pc);
     }
@@ -37,7 +37,7 @@ struct InstFormatR: Instruction {
     u32 rs1, rs2, rd;
     u32 rs1v, rs2v, rdv;
     InstFormatR(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         rd(getbits<11, 7>(encoding)),
@@ -55,7 +55,7 @@ struct InstFormatI: Instruction {
     u32 rs1, rd, imm12; // imm length (before ext): 12
     u32 rs1v, rdv;
     InstFormatI(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rs1(getbits<19, 15>(encoding)),
         rd(getbits<11, 7>(encoding)),
         imm12(SExt<12>(getbits<31, 20>(encoding))),
@@ -73,7 +73,7 @@ struct InstFormatS: Instruction {
     u32 rs1, rs2, imm12; // imm length (before ext): 12
     u32 rs1v, rs2v, addr;
     InstFormatS(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         imm12(SExt<12>(
@@ -93,7 +93,7 @@ struct InstFormatB: Instruction {
     u32 rs1, rs2, imm13; // imm length (before ext): 13
     u32 rs1v, rs2v, pcv; bool cond;
     InstFormatB(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rs1(getbits<19, 15>(encoding)),
         rs2(getbits<24, 20>(encoding)),
         imm13(SExt<13>(
@@ -116,7 +116,7 @@ struct InstFormatU: Instruction {
     u32 rd, imm; // imm length (before ext): 32
     u32 rdv;
     InstFormatU(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rd(getbits<11, 7>(encoding)),
         imm(getbits<31, 12>(encoding) << 12) {}
     auto WriteBack(u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; }
@@ -132,7 +132,7 @@ struct InstFormatJ: Instruction {
     u32 rd, imm21; // imm length (before ext): 21
     u32 rdv, pcv;
     InstFormatJ(const u32 encoding, const u32 pc, const u32 reg[32]):
-        Instruction(encoding, pc),
+        Instruction(encoding, pc, reg),
         rd(getbits<11, 7>(encoding)),
         imm21(SExt<21>(
             (getbits<31>(encoding) << 20)
@@ -256,6 +256,8 @@ using SB    = InstructionImpl<InstTag::SB,    Store_rri>;
 using SH    = InstructionImpl<InstTag::SH,    Store_rri>;
 using SW    = InstructionImpl<InstTag::SW,    Store_rri>;
 
+using Unknown = InstructionImpl<InstTag::Unknown, Instruction>;
+
 specialize(ADDI,  Execute) () -> void { rdv = rs1v + imm12; }
 specialize(SLTI,  Execute) () -> void { rdv = slt(rs1v, imm12) ? 1 : 0; }
 specialize(SLTIU, Execute) () -> void { rdv = ult(rs1v, imm12) ? 1 : 0; }
@@ -302,6 +304,12 @@ specialize(JALR,  dump) () -> void {
     AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
     // $rd, $imm12($rs1)
     AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
+    Instruction::dump();
+}
+
+specialize(Unknown, dump) () -> void {
+    AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", "unknown");
+    AlignedPrintf<DumpOptions::ArgstrAlign>("%s", "");
     Instruction::dump();
 }
 
