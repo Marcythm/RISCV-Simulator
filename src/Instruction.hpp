@@ -5,9 +5,6 @@
 #include "Memory.hpp"
 #include "Utility.hpp"
 
-struct Instruction;
-using InstPtr = std::shared_ptr<Instruction>;
-
 struct Instruction {
     u32 encoding;
     u32 pc;

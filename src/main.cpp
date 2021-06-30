@@ -4,6 +4,6 @@
 
 auto main() -> i32 {
     Executor executor;
-    executor.exec(std::cin);
+    printf("%d\n", executor.exec(std::cin));
     return 0;
 }

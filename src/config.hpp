@@ -42,8 +42,9 @@ constexpr char const * regname_[2][32] = {
 
 namespace DumpOptions {
     constexpr bool TrackMemOp       = false;    // track memory operations
-    constexpr bool DumpInst         = true;     // dump instructions
+    constexpr bool DumpInst         = false;     // dump instructions
     constexpr bool DumpRegState     = false;     // dump register states **every instruction**
+    constexpr bool DumpRetValue     = false;    // dump return value
     constexpr bool useABIname       = true;     // dump registers with their ABI name
 
     constexpr i32 RegNameAlign      = 6;        // dump Regname with this align
@@ -53,4 +54,7 @@ namespace DumpOptions {
 
 constexpr const char *const * regname = regname_[DumpOptions::useABIname];
 
-#define MemoryDump
+struct Instruction;
+using InstPtr = std::shared_ptr<Instruction>;
+
+struct Executor;

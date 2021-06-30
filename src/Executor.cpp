@@ -1,25 +1,24 @@
 #include "Executor.hpp"
 
-auto Executor::InstFetch() -> InstPtr {
-    auto instptr = std::make_shared<Instruction>(mem.load<u32>(pc), pc, reg);
+auto Executor::InstFetch() -> void {
+    IF = std::make_shared<Instruction>(mem.load<u32>(pc), pc, reg);
     pc += 4;
-    return instptr;
 }
 
-auto Executor::InstDecode(InstPtr &inst) -> void {
-    inst = Instruction::Decode(inst->encoding, inst->pc, reg);
+auto Executor::InstDecode() -> void {
+    IF_ID = Instruction::Decode(IF->encoding, IF->pc, reg);
 }
 
-auto Executor::InstExecute(const InstPtr &inst) -> void {
-    inst->Execute();
+auto Executor::InstExecute() -> void {
+    ID_EX->Execute();
 }
 
-auto Executor::InstMemAccess(const InstPtr &inst) -> void {
-    inst->MemAccess(mem);
+auto Executor::InstMemAccess() -> void {
+    EX_MEM->MemAccess(mem);
 }
 
-auto Executor::InstWriteBack(const InstPtr &inst) -> void {
-    inst->WriteBack(pc, reg);
+auto Executor::InstWriteBack() -> void {
+    MEM_WB->WriteBack(pc, reg);
 }
 
 auto Executor::DumpRegState() -> void {
@@ -39,17 +38,18 @@ auto Executor::DumpRegState() -> void {
 auto Executor::exec(std::istream &input) -> u32 {
     initMem(input); pc = 0;
     while (true) {
-        InstPtr inst = InstFetch();
-        InstDecode(inst);
+        InstFetch(); IF_ID = IF;
+        InstDecode(); ID_EX = IF_ID;
         if constexpr (DumpOptions::DumpInst)
-            inst->dump();
-        if (inst->encoding == 0x0ff00513) break;
-        InstExecute(inst);
-        InstMemAccess(inst);
-        InstWriteBack(inst);
+            ID_EX->dump();
+        if (ID_EX->encoding == 0x0ff00513) break;
+        InstExecute(); EX_MEM = ID_EX;
+        InstMemAccess(); MEM_WB = EX_MEM;
+        InstWriteBack();
         if constexpr (DumpOptions::DumpRegState)
             DumpRegState();
     }
-    printf("ret: %d\n", reg[10] & 255u);
+    if constexpr (DumpOptions::DumpRetValue)
+        printf("return value: %d\n", reg[10] & 255u);
     return reg[10] & 255u;
 }
