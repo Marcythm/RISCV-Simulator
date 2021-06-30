@@ -152,8 +152,29 @@ struct InstFormatJ: Instruction {
 // Instruction Class Templates
 //===----------------------------------------------------------------------===//
 
-template <typename Tag, typename Fmt, bool isTerminal = true>
+template <typename Tag, typename Fmt, bool isTerminal = true, typename... AdditionalFields>
 struct InstructionImpl: Tag, Fmt {
+    using tag = Tag;
+    using fmt = Fmt;
+    using tag::opcode;
+
+    std::tuple<AdditionalFields...> fields;
+    InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
+        fmt(encoding, pc, reg) {}
+
+    auto Execute() -> void { fmt::Execute(); }
+    auto MemAccess(Memory &mem) -> void { fmt::MemAccess(mem); }
+    auto WriteBack(u32 &pc, u32 reg[32]) -> void { fmt::WriteBack(pc, reg); }
+
+    auto dump() -> void {
+        if constexpr (isTerminal)
+            AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
+        fmt::dump();
+    }
+};
+
+template <typename Tag, typename Fmt, bool isTerminal>
+struct InstructionImpl<Tag, Fmt, isTerminal>: Tag, Fmt {
     using tag = Tag;
     using fmt = Fmt;
     using tag::opcode;
@@ -178,10 +199,13 @@ using ALU_ri        = InstructionImpl<InstTag::ALU_ri,       InstFormatI, false>
 using Shift_ri      = InstructionImpl<InstTag::Shift_ri,     InstFormatI, false>;
 using ALU_rr        = InstructionImpl<InstTag::ALU_rr,       InstFormatR, false>;
 using BranchCC_rri  = InstructionImpl<InstTag::BranchCC_rri, InstFormatB, false>;
-using Load_ri       = InstructionImpl<InstTag::Load_ri,      InstFormatI, false>;
+using Load_ri       = InstructionImpl<InstTag::Load_ri,      InstFormatI, false, u32>;
 using Store_rri     = InstructionImpl<InstTag::Store_rri,    InstFormatS, false>;
 
-specialize(Load_ri,   Execute) () -> void { rdv = rs1v + imm12; }
+template <> inline Shift_ri::InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
+    fmt(encoding, pc, reg) { imm12 &= 31; }
+
+specialize(Load_ri,   Execute) () -> void { std::get<0>(fields) = rs1v + imm12; }
 specialize(Store_rri, Execute) () -> void { addr = rs1v + imm12; }
 
 specialize(Load_ri, dump) () -> void {
@@ -190,7 +214,7 @@ specialize(Load_ri, dump) () -> void {
     Instruction::dump();
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
 
@@ -216,7 +240,7 @@ using SRL   = InstructionImpl<InstTag::SRL,   ALU_rr>;
 using SUB   = InstructionImpl<InstTag::SUB,   ALU_rr>;
 using SRA   = InstructionImpl<InstTag::SRA,   ALU_rr>;
 using JAL   = InstructionImpl<InstTag::JAL,   InstFormatJ>;
-using JALR  = InstructionImpl<InstTag::JALR,  InstFormatI>;
+using JALR  = InstructionImpl<InstTag::JALR,  InstFormatI, true, u32>;
 using BEQ   = InstructionImpl<InstTag::BEQ,   BranchCC_rri>;
 using BNE   = InstructionImpl<InstTag::BNE,   BranchCC_rri>;
 using BLT   = InstructionImpl<InstTag::BLT,   BranchCC_rri>;
@@ -232,37 +256,9 @@ using SB    = InstructionImpl<InstTag::SB,    Store_rri>;
 using SH    = InstructionImpl<InstTag::SH,    Store_rri>;
 using SW    = InstructionImpl<InstTag::SW,    Store_rri>;
 
-// JALR is specialized separately because it needs an extra pcv field
-template <> struct InstructionImpl<InstTag::JALR, InstFormatI, true>
-    : InstTag::JALR, InstFormatI {
-    using tag = InstTag::JALR;
-    using fmt = InstFormatI;
-    using tag::opcode;
-
-    u32 pcv;
-    InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
-        fmt(encoding, pc, reg) {}
-
-    auto Execute() -> void { rdv = pc + 4; pcv = rs1v + imm12; }
-    auto WriteBack(u32 &pc, u32 reg[32]) -> void {
-        if (rd != 0) reg[rd] = rdv;
-        pc = pcv;
-    }
-
-    auto dump() -> void {
-        AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
-        // $rd, $imm12($rs1)
-        AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
-        Instruction::dump();
-    }
-};
-
-template <> inline SRAI::InstructionImpl(const u32 encoding, const u32 pc, const u32 reg[32]):
-    fmt(encoding & ~(1 << 30), pc, reg) {}
-
 specialize(ADDI,  Execute) () -> void { rdv = rs1v + imm12; }
-specialize(SLTI,  Execute) () -> void { rdv = (cast<i32>(rs1v) < cast<i32>(imm12)) ? 1 : 0; }
-specialize(SLTIU, Execute) () -> void { rdv = (rs1v < imm12) ? 1 : 0; }
+specialize(SLTI,  Execute) () -> void { rdv = slt(rs1v, imm12) ? 1 : 0; }
+specialize(SLTIU, Execute) () -> void { rdv = ult(rs1v, imm12) ? 1 : 0; }
 specialize(ANDI,  Execute) () -> void { rdv = rs1v & imm12; }
 specialize(ORI,   Execute) () -> void { rdv = rs1v | imm12; }
 specialize(XORI,  Execute) () -> void { rdv = rs1v ^ imm12; }
@@ -272,8 +268,8 @@ specialize(SRAI,  Execute) () -> void { rdv = SExt(rs1v >> imm12, 32 - imm12); }
 specialize(LUI,   Execute) () -> void { rdv = imm; }
 specialize(AUIPC, Execute) () -> void { rdv = pc + imm; }
 specialize(ADD,   Execute) () -> void { rdv = rs1v + rs2v; }
-specialize(SLT,   Execute) () -> void { rdv = (cast<i32>(rs1v) < cast<i32>(rs2v)) ? 1 : 0; }
-specialize(SLTU,  Execute) () -> void { rdv = (rs1v < rs2v) ? 1 : 0; }
+specialize(SLT,   Execute) () -> void { rdv = slt(rs1v, rs2v) ? 1 : 0; }
+specialize(SLTU,  Execute) () -> void { rdv = ult(rs1v, rs2v) ? 1 : 0; }
 specialize(AND,   Execute) () -> void { rdv = rs1v & rs2v; }
 specialize(OR,    Execute) () -> void { rdv = rs1v | rs2v; }
 specialize(XOR,   Execute) () -> void { rdv = rs1v ^ rs2v; }
@@ -282,24 +278,31 @@ specialize(SRL,   Execute) () -> void { rdv = rs1v >> (rs2v & 31); }
 specialize(SUB,   Execute) () -> void { rdv = rs1v - rs2v; }
 specialize(SRA,   Execute) () -> void { rdv = SExt(rs1v >> (rs2v & 31), 32 - (rs2v & 31)); }
 specialize(JAL,   Execute) () -> void { rdv = pc + 4; pcv = pc + imm21; }
-// specialize(JALR,  Execute) () -> void { rdv = pc + 4; /*pcv = rs1v + imm12;*/ } // TODO: add pcv field for JALR
+specialize(JALR,  Execute) () -> void { rdv = pc + 4; std::get<0>(fields) = rs1v + imm12; }
 specialize(BEQ,   Execute) () -> void { pcv = pc + imm13; cond = (rs1v == rs2v); }
 specialize(BNE,   Execute) () -> void { pcv = pc + imm13; cond = (rs1v != rs2v); }
-specialize(BLT,   Execute) () -> void { pcv = pc + imm13; cond = (cast<i32>(rs1v) < cast<i32>(rs2v)); }
-specialize(BLTU,  Execute) () -> void { pcv = pc + imm13; cond = (rs1v < rs2v); }
-specialize(BGE,   Execute) () -> void { pcv = pc + imm13; cond = (cast<i32>(rs1v) > cast<i32>(rs2v)); }
-specialize(BGEU,  Execute) () -> void { pcv = pc + imm13; cond = (rs1v > rs2v); }
+specialize(BLT,   Execute) () -> void { pcv = pc + imm13; cond = slt(rs1v, rs2v); }
+specialize(BLTU,  Execute) () -> void { pcv = pc + imm13; cond = ult(rs1v, rs2v); }
+specialize(BGE,   Execute) () -> void { pcv = pc + imm13; cond = sge(rs1v, rs2v); }
+specialize(BGEU,  Execute) () -> void { pcv = pc + imm13; cond = uge(rs1v, rs2v); }
 
-specialize(LB,    MemAccess) (Memory &mem) -> void { rdv = SExt<8>(mem.load<u8>(rdv)); }
-specialize(LH,    MemAccess) (Memory &mem) -> void { rdv = SExt<16>(mem.load<u16>(rdv)); }
-specialize(LW,    MemAccess) (Memory &mem) -> void { rdv = mem.load<u32>(rdv); }
-specialize(LBU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u8>(rdv); }
-specialize(LHU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u16>(rdv); }
+specialize(LB,    MemAccess) (Memory &mem) -> void { rdv = SExt<8>(mem.load<u8>(std::get<0>(fields))); }
+specialize(LH,    MemAccess) (Memory &mem) -> void { rdv = SExt<16>(mem.load<u16>(std::get<0>(fields))); }
+specialize(LW,    MemAccess) (Memory &mem) -> void { rdv = mem.load<u32>(std::get<0>(fields)); }
+specialize(LBU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u8>(std::get<0>(fields)); }
+specialize(LHU,   MemAccess) (Memory &mem) -> void { rdv = mem.load<u16>(std::get<0>(fields)); }
 specialize(SB,    MemAccess) (Memory &mem) -> void { mem.store<u8>(addr, rs2v); }
 specialize(SH,    MemAccess) (Memory &mem) -> void { mem.store<u16>(addr, rs2v); }
 specialize(SW,    MemAccess) (Memory &mem) -> void { mem.store<u32>(addr, rs2v); }
 
 specialize(JAL,   WriteBack) (u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; pc = pcv; }
-// specialize(JALR,  WriteBack) (u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; pc = /*pcv*/ rs1v + imm12; }
+specialize(JALR,  WriteBack) (u32 &pc, u32 reg[32]) -> void { if (rd != 0) reg[rd] = rdv; pc = std::get<0>(fields); }
+
+specialize(JALR,  dump) () -> void {
+    AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
+    // $rd, $imm12($rs1)
+    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
+    Instruction::dump();
+}
 
 /* --------- undef --------- */

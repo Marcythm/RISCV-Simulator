@@ -9,6 +9,7 @@
 #include <sstream>
 #include <algorithm>
 
+#include <tuple>
 #include <memory>
 #include <type_traits>
 
@@ -41,7 +42,7 @@ constexpr char const * regname_[2][32] = {
 
 namespace DumpOptions {
     constexpr bool TrackMemOp       = false;    // track memory operations
-    constexpr bool DumpInst         = false;     // dump instructions
+    constexpr bool DumpInst         = true;     // dump instructions
     constexpr bool DumpRegState     = false;     // dump register states **every instruction**
     constexpr bool useABIname       = true;     // dump registers with their ABI name
 
