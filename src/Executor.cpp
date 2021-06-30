@@ -37,12 +37,13 @@ auto Executor::DumpRegState() -> void {
 
 auto Executor::exec(std::istream &input) -> u32 {
     initMem(input); pc = 0;
+    i32 cnt = 0;
     while (true) {
         InstFetch(); IF_ID = IF;
         InstDecode(); ID_EX = IF_ID;
         if constexpr (DumpOptions::DumpInst)
             ID_EX->dump();
-        if (ID_EX->encoding == 0x0ff00513) break;
+        if (ID_EX->encoding == 0x0ff00513u) break;
         InstExecute(); EX_MEM = ID_EX;
         InstMemAccess(); MEM_WB = EX_MEM;
         InstWriteBack();

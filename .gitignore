@@ -3,3 +3,4 @@ tests/
 input
 main
 log
+build/
