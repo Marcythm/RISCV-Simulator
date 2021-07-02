@@ -24,10 +24,10 @@ using u16 = unsigned short;
 using u32 = unsigned int;
 using u64 = unsigned long long;
 
-template <u32 XLEN>
-using bits = std::bitset<XLEN>;
+// template <u32 Width = 32u> using bits = std::bitset<Width>;
 
 constexpr bool NOASSERT = false;
 
+template <u32 Width = 32u> struct Bits;
 template <u32 Width = 32u> struct InputWire;
 template <u32 Width = 32u> struct OutputWire;

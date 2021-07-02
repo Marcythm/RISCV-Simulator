@@ -1,28 +1,29 @@
 #pragma once
 
 #include "config.hpp"
+#include "Bits.hpp"
 
 namespace {
   template <u32 Width = 32u>
   struct InputWireImpl {
     virtual ~InputWireImpl() = default;
-    virtual auto get() const -> bits<Width> = 0;
+    virtual auto get() const -> Bits<Width> = 0;
   };
 
   template <u32 Width = 32u>
   struct OutputWireImpl {
     virtual ~OutputWireImpl() = default;
-    virtual auto set(const bits<Width> &value) -> void = 0;
+    virtual auto set(const Bits<Width> &value) -> void = 0;
   };
 
   template <u32 Width = 32u>
   struct WireImpl: InputWireImpl<Width>, OutputWireImpl<Width> {
     WireImpl() = default;
     ~WireImpl() = default;
-    auto get() const -> bits<Width> { return _value; }
-    auto set(const bits<Width> &value) -> void { _value = value; }
+    auto get() const -> Bits<Width> { return _value; }
+    auto set(const Bits<Width> &value) -> void { _value = value; }
   private:
-    bits<Width> _value;
+    Bits<Width> _value;
   };
 }
 
@@ -34,7 +35,7 @@ struct InputWire {
   InputWire(const OutputWire<Width> &);
   auto operator= (const OutputWire<Width> &) -> InputWire<Width>&;
 
-  auto get() const -> bits<Width> { return impl->get(); }
+  auto get() const -> Bits<Width> { return impl->get(); }
   auto getWire() const -> std::shared_ptr<WireImpl<Width>> {
     return std::dynamic_pointer_cast<WireImpl<Width>>(impl);
   }
@@ -48,7 +49,7 @@ struct OutputWire {
   OutputWire(const InputWire<Width> &);
   auto operator= (const InputWire<Width> &) -> OutputWire<Width>&;
 
-  auto set(const bits<Width> &value) -> void { impl->set(value); }
+  auto set(const Bits<Width> &value) -> void { impl->set(value); }
   auto getWire() const -> std::shared_ptr<WireImpl<Width>> {
     return std::dynamic_pointer_cast<WireImpl<Width>>(impl);
   }
