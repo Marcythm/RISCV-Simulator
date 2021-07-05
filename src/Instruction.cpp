@@ -1,9 +1,9 @@
 #include "Instruction.hpp"
 
-#define RET(mnemonic) return std::make_shared<mnemonic>(encoding, pc, reg)
+#define RET(mnemonic) return std::make_shared<mnemonic>(encoding, pc, RF)
 #define CASE(mnemonic, type) case mnemonic::type: RET(mnemonic)
 
-auto Instruction::Decode(const u32 encoding, const u32 pc, const u32 reg[32])
+auto Instruction::Decode(const u32 encoding, const Register &pc, const RegisterFile &RF)
     -> InstPtr {
     switch (GetOpcode(encoding)) {
     case ALU_ri::opcode:

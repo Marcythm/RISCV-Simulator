@@ -1,24 +1,24 @@
 #include "Executor.hpp"
 
 auto Executor::InstFetch() -> void {
-    IF = std::make_shared<Instruction>(mem.load<u32>(pc), pc, reg);
-    pc += 4;
+    IF = std::make_shared<Instruction>(mem.load<u32>(pc), pc, RF);
+    pc = pc + 4;
 }
 
 auto Executor::InstDecode() -> void {
-    IF_ID = Instruction::Decode(IF_ID->encoding, IF_ID->pc, reg);
+    ID = Instruction::Decode(ID->encoding, ID->pc, RF);
 }
 
 auto Executor::InstExecute() -> void {
-    ID_EX->Execute();
+    EX->Execute();
 }
 
 auto Executor::InstMemAccess() -> void {
-    EX_MEM->MemAccess(mem);
+    MEM->MemAccess(mem);
 }
 
 auto Executor::InstWriteBack() -> void {
-    MEM_WB->WriteBack(pc, reg);
+    WB->WriteBack(pc, RF);
 }
 
 auto Executor::DumpRegState() -> void {
@@ -28,7 +28,7 @@ auto Executor::DumpRegState() -> void {
         for (i32 j = i; j < i + 4; ++j) {
             printf("| ");
             AlignedPrintf<DumpOptions::RegNameAlign>("%s:", regname[j]);
-            printf("%08x ", reg[j]);
+            printf("%08x ", RF[j]);
         }
         puts("|");
     }
@@ -37,19 +37,23 @@ auto Executor::DumpRegState() -> void {
 
 auto Executor::exec(std::istream &input) -> u32 {
     initMem(input); pc = 0;
-    while (true) {
-        InstFetch(); IF_ID = IF;
-        InstDecode(); ID_EX = IF_ID;
+    for (u32 clk = 0; ; ++clk) {
+        InstFetch(); ID = IF;
+        InstDecode(); EX = ID;
         if constexpr (DumpOptions::DumpInst)
-            ID_EX->dump();
-        if (ID_EX->encoding == 0x0ff00513u) break;
-        InstExecute(); EX_MEM = ID_EX;
-        InstMemAccess(); MEM_WB = EX_MEM;
+            EX->dump();
+        if (EX->encoding == 0x0ff00513u) break;
+        InstExecute(); MEM = EX;
+        InstMemAccess(); WB = MEM;
         InstWriteBack();
         if constexpr (DumpOptions::DumpRegState)
             DumpRegState();
+        if constexpr (DumpOptions::ClkLimit > 0) {
+            if (clk >= DumpOptions::ClkLimit)
+                break;
+        }
     }
     if constexpr (DumpOptions::DumpRetValue)
-        printf("return value: %d\n", reg[10] & 255u);
-    return reg[10] & 255u;
+        printf("return value: %d\n", RF[10] & 255u);
+    return RF[10] & 255u;
 }

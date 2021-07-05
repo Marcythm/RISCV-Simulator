@@ -2,15 +2,17 @@
 
 #include "config.hpp"
 #include "Memory.hpp"
+#include "RegisterFile.hpp"
 #include "Instruction.hpp"
 
 struct Executor {
-    InstPtr IF, IF_ID, ID_EX, EX_MEM, MEM_WB;
-    u32 pc, reg[32];
+    InstPtr IF, ID, EX, MEM, WB;
+    Register pc;
+    RegisterFile RF;
     Memory mem;
 
-    Executor(): pc(0), reg{0}, mem{} {}
-    Executor(std::istream &input): pc(0), reg{0}, mem(input) {}
+    Executor(): mem{} {}
+    Executor(std::istream &input): mem(input) {}
 
     auto initMem(std::istream &input) { mem.readfrom(input); }
 

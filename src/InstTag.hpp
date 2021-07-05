@@ -55,6 +55,8 @@ namespace InstTag {
     GENOPCODE(OP,       0b0110011);
     GENOPCODE(LUI,      0b0110111);
     GENOPCODE(BRANCH,   0b1100011);
+    GENOPCODE(JALR,     0b1100111);
+    GENOPCODE(JAL,      0b1101111);
 
     // 2.4 Integer Computational Instructions
 
@@ -91,8 +93,8 @@ namespace InstTag {
     // 2.5 Control Transfer Instructions
 
     // 2.5.1 Unconditional Jumps
-    GENTAG_J(JAL,   "jal",   0b1101111);
-    GENTAG_I(JALR,  "jalr",  0b1100111, 0b000);
+    GENTAG_J(JAL,   "jal",   OPC_JAL);
+    GENTAG_I(JALR,  "jalr",  OPC_JALR, 0b000);
 
     // 2.5.2 Conditional Branches
     GENTAG  (BranchCC_rri,   OPC_BRANCH);

@@ -29,6 +29,14 @@ constexpr inline auto SExt(const u32 bits) -> u32 {
     return bits;
 }
 
+#ifdef UB
+constexpr inline auto SExt(const u32 bits, const u32 length, const u32 XLEN = 32)
+     -> u32 {
+    if (bits & (1 << (length - 1)))
+        return bits | (~((1 << length) - 1) & ((1u << XLEN) - 1u));
+    return bits;
+}
+#else
 constexpr inline auto SExt(const u32 bits, const u32 length, const u32 XLEN = 32)
      -> u32 {
     if (length >= 32)
@@ -37,6 +45,7 @@ constexpr inline auto SExt(const u32 bits, const u32 length, const u32 XLEN = 32
         return bits | (~((1 << length) - 1));
     return bits;
 }
+#endif
 
 template <typename T, typename U>
 constexpr inline auto cast(const U bits) -> T {

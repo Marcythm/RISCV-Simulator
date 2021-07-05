@@ -42,14 +42,15 @@ constexpr char const * regname_[2][32] = {
 
 namespace DumpOptions {
     constexpr bool TrackMemOp       = false;    // track memory operations
-    constexpr bool DumpInst         = false;     // dump instructions
+    constexpr bool DumpInst         = true;     // dump instructions
     constexpr bool DumpRegState     = false;     // dump register states **every instruction**
     constexpr bool DumpRetValue     = false;    // dump return value
     constexpr bool useABIname       = true;     // dump registers with their ABI name
+    constexpr u32 ClkLimit         = 0;         // exit after executing ClkLimit clock cycles
 
-    constexpr i32 RegNameAlign      = 6;        // dump Regname with this align
-    constexpr i32 OpcodestrAlign    = 8;        // dump opcodestr with this align
-    constexpr i32 ArgstrAlign       = 24;       // dump argstr with this align
+    constexpr u32 RegNameAlign      = 6;        // dump Regname with this align
+    constexpr u32 OpcodestrAlign    = 8;        // dump opcodestr with this align
+    constexpr u32 ArgstrAlign       = 24;       // dump argstr with this align
 }
 
 constexpr const char *const * regname = regname_[DumpOptions::useABIname];
