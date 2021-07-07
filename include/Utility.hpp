@@ -77,12 +77,12 @@ constexpr inline auto GetFunct7(const u32 bits) -> u32 {
 }
 
 inline auto putn(const char c, i32 n) -> void {
-  while (n-- > 0) putchar(c);
+  while (n-- > 0) LOG("%c", c);
 }
 
 /// call printf with args, then fill to align characters with spaces
 template <i32 align, typename... Args>
-inline auto AlignedPrintf(const Args&... args) -> void {
-  const i32 n = printf(std::forward<const Args &>(args)...);
+inline auto AlignedLOG(const Args&... args) -> void {
+  const i32 n = LOG(std::forward<const Args &>(args)...);
   putn(' ', align - n);
 }

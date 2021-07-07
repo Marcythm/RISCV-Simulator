@@ -10,7 +10,7 @@ struct Memory {
 
   auto readfrom(std::istream &input) -> void {
     if constexpr (DumpOptions::TrackMemOp)
-      puts("---------- loading memory ----------");
+      LOG("---------- loading memory ----------\n");
     std::memset(mem, 0, sizeof mem);
     std::string buf;
     u8 *pos = mem; u32 value;
@@ -25,7 +25,7 @@ struct Memory {
       }
     }
     if constexpr (DumpOptions::TrackMemOp)
-      puts("---------- memory loaded ----------");
+      LOG("---------- memory loaded ----------\n");
   }
 
   template <typename T>
@@ -33,7 +33,7 @@ struct Memory {
     if constexpr (!NOASSERT)
       assert(address < MEMORY_SIZE && "load address exceeds MEMORY_SIZE");
     if constexpr (DumpOptions::TrackMemOp)
-      printf("load from memory: addr = %08x, value = %08x\n", address, *((T*)(mem + address)));
+      LOG("load from memory: addr = %08x, value = %08x\n", address, *((T*)(mem + address)));
     return *((T*)(mem + address));
   }
 
@@ -42,7 +42,7 @@ struct Memory {
     if constexpr (!NOASSERT)
       assert(address < MEMORY_SIZE && "store address exceeds MEMORY_SIZE");
     if constexpr (DumpOptions::TrackMemOp)
-      printf("store to memory:   addr = %08x, value = %08x\n", address, value);
+      LOG("store to memory:   addr = %08x, value = %08x\n", address, value);
     *((T*)(mem + address)) = value;
   }
 };

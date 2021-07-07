@@ -49,10 +49,10 @@ constexpr char const * regname_[2][32] = {
 
 namespace DumpOptions {
   constexpr bool TrackMemOp             = false;    // track memory operations
-  constexpr bool DumpInst               = false;    // dump instructions
+  constexpr bool DumpInst               = true;    // dump instructions
   constexpr bool DumpRegState           = false;    // dump register states **every instruction**
   constexpr bool DumpRetValue           = false;    // dump return value
-  constexpr bool DumpTargetAddr         = false;    // dump target address instead of offset in Branch/Jump instructions
+  constexpr bool DumpTargetAddr         = true;    // dump target address instead of offset in Branch/Jump instructions
   constexpr bool DumpTotalClockCycle    = false;    // dump total clock cycles
   constexpr bool DumpPredictionAccuracy = false;    // dump prediction accuracy
   constexpr bool DumpTotalTime          = false;    // dump total time used
@@ -62,6 +62,15 @@ namespace DumpOptions {
   constexpr u32 RegNameAlign      = 6;        // dump Regname with this align
   constexpr u32 OpcodestrAlign    = 8;        // dump opcodestr with this align
   constexpr u32 ArgstrAlign       = 24;       // dump argstr with this align
+}
+
+template <typename... Ts>
+inline auto LOG(const Ts&... args) -> i32 {
+  return fprintf(stderr, std::forward<const Ts &>(args)...);
+}
+
+inline auto LOG(const char *str) -> i32 {
+  return fprintf(stderr, "%s", str);
 }
 
 constexpr const char *const * regname = regname_[DumpOptions::UseABIname];

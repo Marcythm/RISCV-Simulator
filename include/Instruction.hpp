@@ -28,22 +28,22 @@ struct Instruction {
   virtual auto WriteBack(RegisterFile &)-> void {}
 
   auto dumpPCAndEncoding() -> void {
-    printf("%5x: %02x %02x %02x %02x", pc,
+    LOG("%5x: %02x %02x %02x %02x", pc,
       getbits<7, 0>(encoding), getbits<15, 8>(encoding),
       getbits<23, 16>(encoding), getbits<31, 24>(encoding));
   }
   virtual auto dumpOpcodestr() -> void {
-    AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", "unknown");
+    AlignedLOG<DumpOptions::OpcodestrAlign>("%s", "unknown");
   }
   virtual auto dumpArgstr() -> void {
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s", "");
+    AlignedLOG<DumpOptions::ArgstrAlign>("%s", "");
   }
   auto dump() -> void {
     this->dumpPCAndEncoding();
     putn(' ', 10);
     this->dumpOpcodestr();
     this->dumpArgstr();
-    printf("\n");
+    LOG("\n");
   }
 };
 
@@ -59,7 +59,7 @@ struct InstFormatR: Instruction {
   auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $rs1, $rs2
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, %s", regname[rd], regname[rs1], regname[rs2]);
+    AlignedLOG<DumpOptions::ArgstrAlign>("%s, %s, %s", regname[rd], regname[rs1], regname[rs2]);
   }
 };
 
@@ -77,7 +77,7 @@ struct InstFormatI: Instruction {
   auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $rs1, $imm12
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rd], regname[rs1], imm12);
+    AlignedLOG<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rd], regname[rs1], imm12);
   }
 };
 
@@ -97,7 +97,7 @@ struct InstFormatS: Instruction {
 
   auto dumpArgstr() -> void {
     // $rs2, $imm12($rs1)
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rs2], imm12, regname[rs1]);
+    AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rs2], imm12, regname[rs1]);
   }
 };
 
@@ -120,9 +120,9 @@ struct InstFormatB: Instruction {
   auto dumpArgstr() -> void {
     // $rs1, $rs2, $imm13
     if constexpr (DumpOptions::DumpTargetAddr)
-      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], pc + imm13);
+      AlignedLOG<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], pc + imm13);
     else
-      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], imm13);
+      AlignedLOG<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], imm13);
   }
 };
 
@@ -140,7 +140,7 @@ struct InstFormatU: Instruction {
   auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $imm20
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm);
+    AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm);
   }
 };
 
@@ -165,9 +165,9 @@ struct InstFormatJ: Instruction {
   auto dumpArgstr() -> void {
     // $rd, $imm21
     if constexpr (DumpOptions::DumpTargetAddr)
-      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], pc + imm21);
+      AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], pc + imm21);
     else
-      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm21);
+      AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm21);
   }
 };
 
@@ -194,7 +194,7 @@ struct InstructionImpl: Type, Fmt {
 
   auto dumpOpcodestr() -> void {
     if constexpr (isTerminal)
-      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
+      AlignedLOG<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
   }
   auto dumpArgstr() -> void {
     Fmt::dumpArgstr();
@@ -219,7 +219,7 @@ struct InstructionImpl<Type, Fmt, isTerminal>: Type, Fmt {
 
   auto dumpOpcodestr() -> void {
     if constexpr (isTerminal)
-      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
+      AlignedLOG<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
   }
   auto dumpArgstr() -> void {
     Fmt::dumpArgstr();
@@ -243,7 +243,7 @@ specialize(Store_rri, Execute) () -> void { addr = rs1v + imm12; }
 
 specialize(Load_ri, dumpArgstr) () -> void {
   // $rd, $imm12($rs1)
-  AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
+  AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
 }
 
 //===---------------------------------------------------------------------===//
@@ -330,12 +330,12 @@ specialize(SH,    MemAccess) (Memory &mem) -> void { mem.store<u16>(addr, cast<u
 specialize(SW,    MemAccess) (Memory &mem) -> void { mem.store<u32>(addr, cast<u32>(rs2v)); }
 
 specialize(JALR,  dumpOpcodestr) () -> void {
-  AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
+  AlignedLOG<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
 }
 
 specialize(JALR,  dumpArgstr) () -> void {
   // $rd, $imm12($rs1)
-  AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
+  AlignedLOG<DumpOptions::ArgstrAlign>("%s, 0x%x(%s)", regname[rd], imm12, regname[rs1]);
 }
 
 

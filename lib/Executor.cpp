@@ -148,18 +148,22 @@ auto Executor::exec(std::istream &input) -> u32 {
     if constexpr (!NOASSERT)
       assert(u32(RF[0]) == 0);
 
+    if constexpr (DumpOptions::DumpInst or DumpOptions::DumpRegState)
+      LOG("clock cycle %llu\n", clk);
+
     if constexpr (DumpOptions::DumpInst) {
-      printf("clock cycle %llu\n", clk);
-      printf("IF  "); if (IF) IF->dump(); else putn(' ', 28), puts("bubble");
-      printf("ID  "); if (ID) ID->dump(); else putn(' ', 28), puts("bubble");
-      printf("EX  "); if (EX) EX->dump(); else putn(' ', 28), puts("bubble");
-      printf("MEM "); if (MEM) MEM->dump(); else putn(' ', 28), puts("bubble");
-      printf("WB  "); if (WB) WB->dump(); else putn(' ', 28), puts("bubble");
-      puts("");
+      LOG("IF  "); if (IF) IF->dump(); else putn(' ', 28), LOG("bubble\n");
+      LOG("ID  "); if (ID) ID->dump(); else putn(' ', 28), LOG("bubble\n");
+      LOG("EX  "); if (EX) EX->dump(); else putn(' ', 28), LOG("bubble\n");
+      LOG("MEM "); if (MEM) MEM->dump(); else putn(' ', 28), LOG("bubble\n");
+      LOG("WB  "); if (WB) WB->dump(); else putn(' ', 28), LOG("bubble\n");
+      LOG("\n");
     }
 
-    if constexpr (DumpOptions::DumpRegState)
+    if constexpr (DumpOptions::DumpRegState) {
       RF.dump();
+      LOG("\n\n");
+    }
 
     if constexpr (DumpOptions::ClkLimit > 0) {
       if (clk >= DumpOptions::ClkLimit)
@@ -167,15 +171,16 @@ auto Executor::exec(std::istream &input) -> u32 {
     }
 
     if (MEM and MEM->encoding == 0x0ff00513u) {
+      LOG("=========================== Execution Ends ===========================\n");
       if constexpr (DumpOptions::DumpTotalClockCycle)
-        fprintf(stderr, "clock cycle: %llu\n", clk);
+        LOG("execution time:       %llu clock cycles\n", clk);
       if constexpr (DumpOptions::DumpPredictionAccuracy)
-        fprintf(stderr, "prediction accuracy: %.6lf%% (%llu / %llu)\n",
+        LOG("prediction accuracy:  %.6lf%% (%llu hits / %llu predictions in total)\n",
           predictor.hitRate() * 100.0, predictor.hit, predictor.total);
       break;
     }
   }
   if constexpr (DumpOptions::DumpRetValue)
-    fprintf(stderr, "return value: %d\n", RF[10] & 255u);
+    LOG("return value: %d\n", RF[10] & 255u);
   return RF[10] & 255u;
 }

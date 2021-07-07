@@ -40,16 +40,16 @@ struct RegisterFile {
   }
 
   auto dump() -> void {
-    puts("dumping register states");
-    puts("=============================== start ===============================");
+    LOG("dumping register states\n");
+    LOG("=============================== start ===============================\n");
     for (i32 i = 0; i < 32; i += 4) {
       for (i32 j = i; j < i + 4; ++j) {
-        printf("| ");
-        AlignedPrintf<DumpOptions::RegNameAlign>("%s:", regname[j]);
-        printf("%08x ", u32(x[j]));
+        LOG("| ");
+        AlignedLOG<DumpOptions::RegNameAlign>("%s:", regname[j]);
+        LOG("%08x ", u32(x[j]));
       }
-      puts("|");
+      LOG("|\n");
     }
-    puts("================================ end ================================");
+    LOG("================================ end ================================\n");
   }
 };
