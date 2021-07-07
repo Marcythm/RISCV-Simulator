@@ -118,7 +118,11 @@ namespace InstTag {
   GENTAG_S(SH,    "sh",    OPC_STORE, 0b001);
   GENTAG_S(SW,    "sw",    OPC_STORE, 0b010);
 
-  GENTAG(Unknown, 0b0000000);
+  // GENTAG(Unknown, 0b0000000);
+  struct Unknown {
+    static constexpr u32 opcode = 0b0000000;
+    static constexpr char const *opcodestr = "unknown";
+  };
 
   #undef GENTAG
   #undef GENTAG_R

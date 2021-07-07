@@ -66,8 +66,8 @@ auto Instruction::Decode(const u32 encoding, const Register &pc, const RegisterF
       CASE(SW, funct3);
     }
   }
-  if constexpr (not NOASSERT)
-    assert(false && "no matching encoding");
-  else RET(Unknown);
+  RET(Unknown);
+  // if constexpr (not NOASSERT)
+  //   assert(false && "no matching encoding");
   return nullptr;
 }

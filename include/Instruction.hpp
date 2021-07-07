@@ -9,9 +9,15 @@
 struct Instruction {
   u32 encoding;
   u32 pc;
+  u32 rs1, rs2, rd, imm;
+  u32 rs1v, rs2v, rdv;
 
-  Instruction(const u32 encoding, const Register &pc, const RegisterFile &):
-    encoding(encoding), pc(pc) {}
+  Instruction(const u32 encoding, const Register &pc, const RegisterFile &RF):
+    encoding(encoding), pc(pc),
+    rs1(getbits<19, 15>(encoding)),
+    rs2(getbits<24, 20>(encoding)),
+    rd(getbits<11, 7>(encoding)),
+    rs1v(RF[rs1]), rs2v(RF[rs2]) {}
   virtual ~Instruction() {};
 
   static auto Decode(const u32 encoding, const Register &pc, const RegisterFile &RF)
@@ -19,10 +25,10 @@ struct Instruction {
 
   virtual auto Execute() -> void {}
   virtual auto MemAccess(Memory &) -> void {}
-  virtual auto WriteBack(Register &, RegisterFile &) -> void {}
+  virtual auto WriteBack(RegisterFile &)-> void {}
 
   auto dumpPCAndEncoding() -> void {
-    printf("%5x: %02x %02x %02x %02x\t\t\t", pc,
+    printf("%5x: %02x %02x %02x %02x", pc,
       getbits<7, 0>(encoding), getbits<15, 8>(encoding),
       getbits<23, 16>(encoding), getbits<31, 24>(encoding));
   }
@@ -34,6 +40,7 @@ struct Instruction {
   }
   auto dump() -> void {
     this->dumpPCAndEncoding();
+    putn(' ', 10);
     this->dumpOpcodestr();
     this->dumpArgstr();
     printf("\n");
@@ -45,17 +52,11 @@ struct Instruction {
 //===----------------------------------------------------------------------===//
 
 struct InstFormatR: Instruction {
-  u32 rs1, rs2, rd;
-  u32 rs1v, rs2v, rdv;
   InstFormatR(const u32 encoding, const Register &pc, const RegisterFile &RF):
-    Instruction(encoding, pc, RF),
-    rs1(getbits<19, 15>(encoding)),
-    rs2(getbits<24, 20>(encoding)),
-    rd(getbits<11, 7>(encoding)),
-    rs1v(RF[rs1]), rs2v(RF[rs2]) {}
+    Instruction(encoding, pc, RF) {}
   ~InstFormatR() {}
 
-  auto WriteBack(Register &, RegisterFile &RF) -> void { RF[rd] = rdv; }
+  auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $rs1, $rs2
     AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, %s", regname[rd], regname[rs1], regname[rs2]);
@@ -63,17 +64,17 @@ struct InstFormatR: Instruction {
 };
 
 struct InstFormatI: Instruction {
-  u32 rs1, rd, imm12; // imm length (before ext): 12
-  u32 rs1v, rdv;
+  u32 imm12; // imm length (before ext): 12
   InstFormatI(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
-    rs1(getbits<19, 15>(encoding)),
-    rd(getbits<11, 7>(encoding)),
-    imm12(SExt<12>(getbits<31, 20>(encoding))),
-    rs1v(RF[rs1]) {}
+    imm12(SExt<12>(getbits<31, 20>(encoding))) {
+      rs2 = 0;
+      rs2v = 0;
+      imm = imm12;
+    }
   ~InstFormatI() {}
 
-  auto WriteBack(Register &, RegisterFile &RF) -> void { RF[rd] = rdv; }
+  auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $rs1, $imm12
     AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rd], regname[rs1], imm12);
@@ -81,17 +82,17 @@ struct InstFormatI: Instruction {
 };
 
 struct InstFormatS: Instruction {
-  u32 rs1, rs2, imm12; // imm length (before ext): 12
-  u32 rs1v, rs2v, addr;
+  u32 imm12; // imm length (before ext): 12
+  u32 addr;
   InstFormatS(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
-    rs1(getbits<19, 15>(encoding)),
-    rs2(getbits<24, 20>(encoding)),
     imm12(SExt<12>(
       (getbits<31, 25>(encoding) << 5)
-       + getbits<11, 7>(encoding)
-    )),
-    rs1v(RF[rs1]), rs2v(RF[rs2]) {}
+    + (getbits<11, 7>(encoding))
+    )) {
+      rd = 0;
+      imm = imm12;
+    }
   ~InstFormatS() {}
 
   auto dumpArgstr() -> void {
@@ -101,39 +102,42 @@ struct InstFormatS: Instruction {
 };
 
 struct InstFormatB: Instruction {
-  u32 rs1, rs2, imm13; // imm length (before ext): 13
-  u32 rs1v, rs2v, pcv; bool cond;
+  u32 imm13; // imm length (before ext): 13
+  u32 pcv; bool cond;
   InstFormatB(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
-    rs1(getbits<19, 15>(encoding)),
-    rs2(getbits<24, 20>(encoding)),
     imm13(SExt<13>(
       (getbits<31>(encoding) << 12)
-      + (getbits<7>(encoding) << 11)
-      + (getbits<30, 25>(encoding) << 5)
-      + (getbits<11, 8>(encoding) << 1)
-    )),
-    rs1v(RF[rs1]), rs2v(RF[rs2]) {}
+    + (getbits<7>(encoding) << 11)
+    + (getbits<30, 25>(encoding) << 5)
+    + (getbits<11, 8>(encoding) << 1)
+    )) {
+      rd = 0;
+      imm = imm13;
+    }
   ~InstFormatB() {}
 
-  auto WriteBack(Register &pc, RegisterFile &) -> void { if (cond) pc = pcv; }
   auto dumpArgstr() -> void {
     // $rs1, $rs2, $imm13
-    // AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], imm13);
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], pc + imm13);
+    if constexpr (DumpOptions::DumpTargetAddr)
+      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], pc + imm13);
+    else
+      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, %s, 0x%x", regname[rs1], regname[rs2], imm13);
   }
 };
 
 struct InstFormatU: Instruction {
-  u32 rd, imm; // imm length (before ext): 32
-  u32 rdv;
+  u32 imm; // imm length (before ext): 32
   InstFormatU(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
-    rd(getbits<11, 7>(encoding)),
-    imm(getbits<31, 12>(encoding) << 12) {}
+    imm(getbits<31, 12>(encoding) << 12) {
+      rs1 = rs2 = 0;
+      rs1v = rs2v = 0;
+      Instruction::imm = imm;
+    }
   ~InstFormatU() {}
 
-  auto WriteBack(Register &, RegisterFile &RF) -> void { RF[rd] = rdv; }
+  auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $imm20
     AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm);
@@ -141,23 +145,29 @@ struct InstFormatU: Instruction {
 };
 
 struct InstFormatJ: Instruction {
-  u32 rd, imm21; // imm length (before ext): 21
-  u32 rdv, pcv;
+  u32 imm21; // imm length (before ext): 21
+  u32 pcv;
   InstFormatJ(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
-    rd(getbits<11, 7>(encoding)),
     imm21(SExt<21>(
       (getbits<31>(encoding) << 20)
-      + (getbits<19, 12>(encoding) << 12)
-      + (getbits<20>(encoding) << 11)
-      + (getbits<30, 21>(encoding) << 1)
-    )) {}
+    + (getbits<19, 12>(encoding) << 12)
+    + (getbits<20>(encoding) << 11)
+    + (getbits<30, 21>(encoding) << 1)
+    )) {
+      rs1 = rs2 = 0;
+      rs1v = rs2v = 0;
+      imm = imm21;
+    }
   ~InstFormatJ() {}
 
+  auto WriteBack(RegisterFile &RF) -> void { RF[rd] = rdv; }
   auto dumpArgstr() -> void {
     // $rd, $imm21
-    // AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm21);
-    AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], pc + imm21);
+    if constexpr (DumpOptions::DumpTargetAddr)
+      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], pc + imm21);
+    else
+      AlignedPrintf<DumpOptions::ArgstrAlign>("%s, 0x%x", regname[rd], imm21);
   }
 };
 
@@ -165,47 +175,51 @@ struct InstFormatJ: Instruction {
 // Instruction Class Templates
 //===----------------------------------------------------------------------===//
 
-template <typename Tag, typename Fmt, bool isTerminal = true, typename... AdditionalFields>
-struct InstructionImpl: Tag, Fmt {
-  using tag = Tag;
+template <typename Type, typename Fmt, bool isTerminal = true, typename... AdditionalFields>
+struct InstructionImpl: Type, Fmt {
+  using type = Type;
   using fmt = Fmt;
-  using tag::opcode;
+  using type::opcode;
 
   std::tuple<AdditionalFields...> fields;
   InstructionImpl(const u32 encoding, const Register &pc, const RegisterFile &RF):
     fmt(encoding, pc, RF) {}
   ~InstructionImpl() {}
 
+  static auto is(const u32 encoding) -> bool { return GetOpcode(encoding) == opcode; }
+
   auto Execute() -> void { fmt::Execute(); }
   auto MemAccess(Memory &mem) -> void { fmt::MemAccess(mem); }
-  auto WriteBack(Register &pc, RegisterFile &RF) -> void { fmt::WriteBack(pc, RF); }
+  auto WriteBack(RegisterFile &RF) -> void { fmt::WriteBack(RF); }
 
   auto dumpOpcodestr() -> void {
     if constexpr (isTerminal)
-      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
+      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
   }
   auto dumpArgstr() -> void {
     Fmt::dumpArgstr();
   }
 };
 
-template <typename Tag, typename Fmt, bool isTerminal>
-struct InstructionImpl<Tag, Fmt, isTerminal>: Tag, Fmt {
-  using tag = Tag;
+template <typename Type, typename Fmt, bool isTerminal>
+struct InstructionImpl<Type, Fmt, isTerminal>: Type, Fmt {
+  using type = Type;
   using fmt = Fmt;
-  using tag::opcode;
+  using type::opcode;
 
   InstructionImpl(const u32 encoding, const Register &pc, const RegisterFile &RF):
     fmt(encoding, pc, RF) {}
   ~InstructionImpl() {}
 
+  static auto is(const u32 encoding) -> bool { return GetOpcode(encoding) == opcode; }
+
   auto Execute() -> void { fmt::Execute(); }
   auto MemAccess(Memory &mem) -> void { fmt::MemAccess(mem); }
-  auto WriteBack(Register &pc, RegisterFile &RF) -> void { fmt::WriteBack(pc, RF); }
+  auto WriteBack(RegisterFile &RF) -> void { fmt::WriteBack(RF); }
 
   auto dumpOpcodestr() -> void {
     if constexpr (isTerminal)
-      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
+      AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
   }
   auto dumpArgstr() -> void {
     Fmt::dumpArgstr();
@@ -315,11 +329,8 @@ specialize(SB,    MemAccess) (Memory &mem) -> void { mem.store<u8>(addr, cast<u8
 specialize(SH,    MemAccess) (Memory &mem) -> void { mem.store<u16>(addr, cast<u16>(rs2v)); }
 specialize(SW,    MemAccess) (Memory &mem) -> void { mem.store<u32>(addr, cast<u32>(rs2v)); }
 
-specialize(JAL,   WriteBack) (Register &pc, RegisterFile &RF) -> void { RF[rd] = rdv; pc = pcv; }
-specialize(JALR,  WriteBack) (Register &pc, RegisterFile &RF) -> void { RF[rd] = rdv; pc = std::get<0>(fields); }
-
 specialize(JALR,  dumpOpcodestr) () -> void {
-  AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", tag::opcodestr);
+  AlignedPrintf<DumpOptions::OpcodestrAlign>("%s", type::opcodestr);
 }
 
 specialize(JALR,  dumpArgstr) () -> void {
