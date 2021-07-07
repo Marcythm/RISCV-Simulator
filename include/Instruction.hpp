@@ -103,7 +103,7 @@ struct InstFormatS: Instruction {
 
 struct InstFormatB: Instruction {
   u32 imm13; // imm length (before ext): 13
-  u32 pcv; bool cond;
+  u32 pcv; bool cond, pred;
   InstFormatB(const u32 encoding, const Register &pc, const RegisterFile &RF):
     Instruction(encoding, pc, RF),
     imm13(SExt<13>(

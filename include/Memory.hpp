@@ -3,7 +3,6 @@
 #include "config.hpp"
 
 struct Memory {
-  static constexpr u32 MEMORY_SIZE = 0x20000;
   u8 mem[MEMORY_SIZE + 10];
 
   Memory(): mem{0} {}

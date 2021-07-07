@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+#include <ctime>
 
 #include <string>
 #include <iostream>
@@ -24,7 +25,12 @@ using u16 = unsigned short;
 using u32 = unsigned int;
 using u64 = unsigned long long;
 
-constexpr bool NOASSERT = false;
+using f32 = float;
+using f64 = double;
+
+constexpr bool NOASSERT                      = false;
+constexpr u32 MEMORY_SIZE                    = 0x20000;
+constexpr bool UseTwoLevelAdaptivePredictor  = true;
 
 constexpr char const * regname_[2][32] = {
   {
@@ -42,20 +48,23 @@ constexpr char const * regname_[2][32] = {
 };
 
 namespace DumpOptions {
-  constexpr bool TrackMemOp         = false;    // track memory operations
-  constexpr bool DumpInst           = false;     // dump instructions
-  constexpr bool DumpRegState       = false;     // dump register states **every instruction**
-  constexpr bool DumpRetValue       = false;    // dump return value
-  constexpr bool DumpTargetAddr     = false; // dump target address instead of offset in Branch/Jump instructions
-  constexpr bool useABIname         = true;     // dump registers with their ABI name
-  constexpr u32 ClkLimit            = 0;         // exit after executing ClkLimit clock cycles
+  constexpr bool TrackMemOp             = false;    // track memory operations
+  constexpr bool DumpInst               = false;    // dump instructions
+  constexpr bool DumpRegState           = false;    // dump register states **every instruction**
+  constexpr bool DumpRetValue           = false;    // dump return value
+  constexpr bool DumpTargetAddr         = false;    // dump target address instead of offset in Branch/Jump instructions
+  constexpr bool DumpTotalClockCycle    = false;    // dump total clock cycles
+  constexpr bool DumpPredictionAccuracy = false;    // dump prediction accuracy
+  constexpr bool DumpTotalTime          = false;    // dump total time used
+  constexpr bool UseABIname             = true;     // dump registers with their ABI name
+  constexpr u32 ClkLimit                = 0;        // exit after executing ClkLimit clock cycles
 
   constexpr u32 RegNameAlign      = 6;        // dump Regname with this align
   constexpr u32 OpcodestrAlign    = 8;        // dump opcodestr with this align
   constexpr u32 ArgstrAlign       = 24;       // dump argstr with this align
 }
 
-constexpr const char *const * regname = regname_[DumpOptions::useABIname];
+constexpr const char *const * regname = regname_[DumpOptions::UseABIname];
 
 struct Instruction;
 using InstPtr = std::shared_ptr<Instruction>;

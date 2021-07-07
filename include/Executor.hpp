@@ -1,9 +1,10 @@
 #pragma once
 
 #include "config.hpp"
-#include "Memory.hpp"
 #include "RegisterFile.hpp"
+#include "Memory.hpp"
 #include "Signals.hpp"
+#include "Predictor.hpp"
 #include "Instruction.hpp"
 
 struct Executor {
@@ -12,6 +13,7 @@ struct Executor {
   RegisterFile RF;
   StallSignal stallSignal;
   KillSignal killSignal;
+  Predictor predictor;
   Memory mem;
 
   Executor(): mem{} {}

@@ -16,6 +16,19 @@ auto Executor::InstDecode() -> void {
     killSignal.set<KillSignal::ID>();
     return;
   }
+
+  if (BranchCC_rri::is(ID->encoding)) {
+    auto inst = std::dynamic_pointer_cast<BranchCC_rri>(ID);
+
+    if (inst == nullptr and !NOASSERT)
+      assert(false);
+
+    inst->pred = predictor.predict(ID->pc);
+    if (inst->pred) {
+      pc = ID->pc + ID->imm;
+      killSignal.set<KillSignal::ID>();
+    }
+  }
 }
 
 auto Executor::InstExecute() -> void {
@@ -34,13 +47,15 @@ auto Executor::InstExecute() -> void {
 
   if (BranchCC_rri::is(EX->encoding)) {
     auto inst = std::dynamic_pointer_cast<BranchCC_rri>(EX);
+
     if (inst == nullptr and !NOASSERT)
       assert(false);
-    if (inst->cond) {
-      pc = inst->pcv;
+
+    predictor.report(inst->pc, inst->cond);
+    if (inst->cond != inst->pred) {
+      pc = inst->cond ? inst->pcv : (inst->pc + 4);
       killSignal.set<KillSignal::EX>();
     }
-    return;
   }
 }
 
@@ -128,9 +143,11 @@ auto Executor::exec(std::istream &input) -> u32 {
       ID = nullptr;
     killSignal.reset();
 
+    /* ----------------- Dump Options ----------------- */
 
     if constexpr (!NOASSERT)
       assert(u32(RF[0]) == 0);
+
     if constexpr (DumpOptions::DumpInst) {
       printf("clock cycle %llu\n", clk);
       printf("IF  "); if (IF) IF->dump(); else putn(' ', 28), puts("bubble");
@@ -140,16 +157,23 @@ auto Executor::exec(std::istream &input) -> u32 {
       printf("WB  "); if (WB) WB->dump(); else putn(' ', 28), puts("bubble");
       puts("");
     }
+
     if constexpr (DumpOptions::DumpRegState)
       RF.dump();
 
     if constexpr (DumpOptions::ClkLimit > 0) {
       if (clk >= DumpOptions::ClkLimit)
         break;
-      fprintf(stderr, "clock cycle: %llu\n", clk);
     }
 
-    if (MEM and MEM->encoding == 0x0ff00513u) break;
+    if (MEM and MEM->encoding == 0x0ff00513u) {
+      if constexpr (DumpOptions::DumpTotalClockCycle)
+        fprintf(stderr, "clock cycle: %llu\n", clk);
+      if constexpr (DumpOptions::DumpPredictionAccuracy)
+        fprintf(stderr, "prediction accuracy: %.6lf%% (%llu / %llu)\n",
+          predictor.hitRate() * 100.0, predictor.hit, predictor.total);
+      break;
+    }
   }
   if constexpr (DumpOptions::DumpRetValue)
     fprintf(stderr, "return value: %d\n", RF[10] & 255u);

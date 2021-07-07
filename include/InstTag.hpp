@@ -96,7 +96,7 @@ namespace InstTag {
   GENTAG_J(JAL,   "jal",   OPC_JAL);
   GENTAG_I(JALR,  "jalr",  OPC_JALR, 0b000);
 
-  // 2.5.2 Conditional Branches
+  // 2.5.2 conditional Branches
   GENTAG  (BranchCC_rri,   OPC_BRANCH);
   GENTAG_B(BEQ,   "beq",   OPC_BRANCH, 0b000);
   GENTAG_B(BNE,   "bne",   OPC_BRANCH, 0b001);
